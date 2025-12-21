@@ -324,8 +324,32 @@ void mostrarMenu() {
   display.setCursor(0, 0);
   display.println(F("MENU:"));
   display.print(F("Seccion: "));
-  display.println(menuActual);
-  
+  switch (menuActual) {
+    case 0:
+      display.println("Información");
+      break;
+    case 1:
+      display.println("Dar de comer");
+      break;
+    case 2:
+      display.println("Acariciar");
+      break;
+    case 3:
+      display.println("Limpiar");
+      break;
+    case 4:
+      display.println("Disciplinar");
+      break;
+    case 5:
+      display.println("Curar");
+      break;
+    case 6:
+      display.println("Luz");
+      break;
+    default:
+      display.println(menuActual);
+      break;
+    }
   display.display();
 }
 
