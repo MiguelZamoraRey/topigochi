@@ -295,15 +295,16 @@ void ejecutarAccion() {
   Serial.println(menuActual);
 }
 
-// Cancela la acción actual y vuelve al menú (Botón 3)
+// Cancela la acción actual y vuelve a la pantalla principal (Botón 3)
 void cancelarAccion() {
   // Feedback sonoro diferente
   tone(BUZZER, 600, 100);
   
-  // Volver a mostrar el menú
-  mostrarMenu();
+  // Desactivar menú y volver a pantalla principal
+  menuActivo = false;
+  mostrarPantallaPrincipal();
   
-  Serial.println(F("Accion cancelada"));
+  Serial.println(F("Cancelado - Volviendo a pantalla principal"));
 }
 
 // ========================================
