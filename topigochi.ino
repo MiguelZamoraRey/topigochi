@@ -25,6 +25,11 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 unsigned long lastDebounceTime = 0;
 unsigned long debounceDelay = 50;
 
+// Variables para timeout del menú
+unsigned long ultimaInteraccion = 0;
+const unsigned long TIMEOUT_MENU = 5000; // 5 segundos en milisegundos
+bool menuActivo = false; // Indica si estamos en el menú o en pantalla principal
+
 // ========================================
 // ESTRUCTURA DE LA MASCOTA
 // ========================================
@@ -186,6 +191,16 @@ void setup() {
 
 void loop() {
   // ========================================
+  // VERIFICAR TIMEOUT DEL MENÚ
+  // ========================================
+  if (menuActivo && (millis() - ultimaInteraccion > TIMEOUT_MENU)) {
+    // Han pasado 5 segundos sin interacción, volver a pantalla principal
+    menuActivo = false;
+    mostrarPantallaPrincipal();
+    Serial.println(F("Timeout del menu - Volviendo a pantalla principal"));
+  }
+  
+  // ========================================
   // LECTURA DE BOTONES
   // ========================================
   
@@ -223,6 +238,10 @@ void loop() {
 
 // Navega a la siguiente sección del menú (Botón 1)
 void navegarMenu() {
+  // Activar menú y actualizar tiempo de interacción
+  menuActivo = true;
+  ultimaInteraccion = millis();
+  
   // Avanzar al siguiente menú (0-6, saltamos el MENU_ALERTA)
   menuActual++;
   if (menuActual >= MENU_ALERTA) {
@@ -241,6 +260,9 @@ void navegarMenu() {
 
 // Ejecuta la acción correspondiente al menú actual (Botón 2)
 void ejecutarAccion() {
+  // Actualizar tiempo de interacción
+  ultimaInteraccion = millis();
+  
   // Feedback sonoro
   tone(BUZZER, 1200, 100);
   
@@ -327,6 +349,28 @@ void mostrarInformacion() {
   display.display();
 }
 
+// Muestra la pantalla principal con la mascota
+void mostrarPantallaPrincipal() {
+  display.clearDisplay();
+  
+  // TODO: Aquí se dibujará la mascota animada
+  // Por ahora mostramos un mensaje simple
+  
+  display.setTextSize(2);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(20, 20);
+  display.println(F("TOPIGOCHI"));
+  
+  display.setTextSize(1);
+  display.setCursor(10, 45);
+  display.print(F("Fase: "));
+  display.println(miMascota.fase);
+  
+  display.display();
+  
+  Serial.println(F("Mostrando pantalla principal"));
+}
+
 // ========================================
 // FUNCIONES DE ACCIONES
 // ========================================
@@ -336,10 +380,14 @@ void darDeComer() {
   if (miMascota.saciado < 5) {
     miMascota.saciado++;
     Serial.println(F("Dando de comer... Saciado +1"));
+    mostrarMensaje("Comiendo!");
   } else {
     Serial.println(F("La mascota ya esta llena!"));
+    mostrarMensaje("Lleno!");
   }
-  mostrarMenu();
+  delay(2000); // Esperar 2 segundos
+  menuActivo = false;
+  mostrarPantallaPrincipal();
 }
 
 // Acariciar: aumenta la felicidad en 1 (máximo 5)
@@ -347,10 +395,14 @@ void acariciar() {
   if (miMascota.felicidad < 5) {
     miMascota.felicidad++;
     Serial.println(F("Acariciando... Felicidad +1"));
+    mostrarMensaje("Feliz!");
   } else {
     Serial.println(F("La mascota ya esta muy feliz!"));
+    mostrarMensaje("Muy feliz!");
   }
-  mostrarMenu();
+  delay(2000); // Esperar 2 segundos
+  menuActivo = false;
+  mostrarPantallaPrincipal();
 }
 
 // Limpiar: aumenta la limpieza en 1 (máximo 5)
@@ -358,10 +410,14 @@ void limpiar() {
   if (miMascota.limpieza < 5) {
     miMascota.limpieza++;
     Serial.println(F("Limpiando... Limpieza +1"));
+    mostrarMensaje("Limpio!");
   } else {
     Serial.println(F("La mascota ya esta muy limpia!"));
+    mostrarMensaje("Muy limpio!");
   }
-  mostrarMenu();
+  delay(2000); // Esperar 2 segundos
+  menuActivo = false;
+  mostrarPantallaPrincipal();
 }
 
 // Disciplinar: aumenta la educación en 1 (máximo 5)
@@ -369,10 +425,14 @@ void disciplinar() {
   if (miMascota.educacion < 5) {
     miMascota.educacion++;
     Serial.println(F("Disciplinando... Educacion +1"));
+    mostrarMensaje("Educado!");
   } else {
     Serial.println(F("La mascota ya esta bien educada!"));
+    mostrarMensaje("Bien educado!");
   }
-  mostrarMenu();
+  delay(2000); // Esperar 2 segundos
+  menuActivo = false;
+  mostrarPantallaPrincipal();
 }
 
 // Curar: disminuye la enfermedad en 1 (mínimo 0)
@@ -380,10 +440,14 @@ void curar() {
   if (miMascota.enfermedad > 0) {
     miMascota.enfermedad--;
     Serial.println(F("Curando... Enfermedad -1"));
+    mostrarMensaje("Curado!");
   } else {
     Serial.println(F("La mascota ya esta sana!"));
+    mostrarMensaje("Ya sano!");
   }
-  mostrarMenu();
+  delay(2000); // Esperar 2 segundos
+  menuActivo = false;
+  mostrarPantallaPrincipal();
 }
 
 // Encender/Apagar luz: cambia el estado de despierto
@@ -392,10 +456,14 @@ void toggleLuz() {
   
   if (miMascota.despierto) {
     Serial.println(F("Luz encendida - Mascota despierta"));
+    mostrarMensaje("Despierto!");
   } else {
     Serial.println(F("Luz apagada - Mascota durmiendo"));
+    mostrarMensaje("Durmiendo!");
   }
-  mostrarMenu();
+  delay(2000); // Esperar 2 segundos
+  menuActivo = false;
+  mostrarPantallaPrincipal();
 }
 
 void mostrarMensaje(const char* mensaje) {
