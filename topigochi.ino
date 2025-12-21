@@ -18,6 +18,11 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define BOTON_2 3  // Ejecutar acción
 #define BOTON_3 4  // Cancelar
 
+// Tiempo
+unsigned long tiempoInicial = 0;
+unsigned long tiempoActual = 0;
+unsigned long tiempoTranscurrido = 0;
+
 // Pin del buzzer
 #define BUZZER 8
 
@@ -187,9 +192,16 @@ void setup() {
   display.println(F("Presiona un boton"));
   display.display();
   Serial.println(F("Sistema listo!"));
+  tiempoInicial = millis();
 }
 
 void loop() {
+  // ========================================
+  // Reloj interno
+  // ========================================
+  tiempoActual = millis();
+  tiempoTranscurrido = tiempoActual - tiempoInicial;
+
   // ========================================
   // VERIFICAR TIMEOUT DEL MENÚ
   // ========================================
@@ -370,7 +382,19 @@ void mostrarInformacion() {
   display.println(miMascota.saciado);
   display.print(F("Limpio: "));
   display.println(miMascota.limpieza);
-  
+  display.print(F("Tiempo: "));
+  // Convertir milisegundos a horas y minutos
+  int horas = (tiempoTranscurrido / 3600000) % 24;
+  int minutos = (tiempoTranscurrido / 60000) % 60;
+  if (horas < 10){
+    display.print("0");
+  } 
+  display.print(horas);
+  display.print(":");
+  if (minutos < 10){
+    display.println("0");
+  } 
+  display.println(minutos);
   display.display();
 }
 
