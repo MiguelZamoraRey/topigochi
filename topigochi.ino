@@ -18,10 +18,27 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define BOTON_2 3  // Ejecutar acción
 #define BOTON_3 4  // Cancelar
 
-// Tiempo
+// Tiempo interno
 unsigned long tiempoInicial = 0;
 unsigned long tiempoActual = 0;
 unsigned long tiempoTranscurrido = 0;
+
+// Intervalos de tiempo para eventos
+const unsigned long intervaloComida = 28800000; //cada 8 horas
+const unsigned long intervaloLimpieza = 43200000;  //cada 12 horas
+const unsigned long intervaloMaldad = 43200000; //cada 12 horas
+const unsigned long intervaloAburrimiento = 28800000; //cada 8 horas
+const unsigned long intervaloEnfermedad = 86400000;  //cada 24 horas
+
+//variacion en los eventos
+const unsigned long variacionMaxima = 1800000; //30 minutos
+
+//ultima vez de la accion
+unsigned long lastComida = 0; //cada 8 horas
+unsigned long lastLimpieza = 0;  //cada 12 horas
+unsigned long lastMaldad = 0; //cada 12 horas
+unsigned long lastAburrimiento = 0; //cada 8 horas
+unsigned long lastEnfermedad = 0;  //cada 24 horas
 
 // Pin del buzzer
 #define BUZZER 8
@@ -203,6 +220,11 @@ void loop() {
   tiempoTranscurrido = tiempoActual - tiempoInicial;
 
   // ========================================
+  // Eventos
+  // ========================================
+  cheackearEventos();
+
+  // ========================================
   // VERIFICAR TIMEOUT DEL MENÚ
   // ========================================
   if (menuActivo && (millis() - ultimaInteraccion > TIMEOUT_MENU)) {
@@ -241,6 +263,74 @@ void loop() {
       cancelarAccion();
       while(digitalRead(BOTON_3) == LOW);
     }
+  }
+}
+
+// ========================================
+// FUNCIONES DE EVENTOS
+// ========================================
+void cheackearEventos() {
+  if(miMascota.isDead==false){
+    //comida
+    if (tiempoActual - lastComida >= intervaloComida) {
+      if (miMascota.saciado > 1) {
+        miMascota.saciado--;
+        Serial.println(F("Evento: Hambre - Saciado -1"));
+        lastComida = tiempoActual;
+        //TODO: Mostrar mensaje en pantalla
+      }else{
+        miMascota.isDead = true;
+      }
+    }
+    //limpieza
+    if (tiempoActual - lastLimpieza >= intervaloLimpieza) {
+      if (miMascota.limpieza > 1) {
+        miMascota.limpieza--;
+        Serial.println(F("Evento: Suciedad - Limpieza -1"));
+        lastLimpieza = tiempoActual;  
+        //TODO: Mostrar mensaje en pantalla
+      }else{
+        miMascota.isDead = true;
+      }
+    }
+    //maldad
+    if (tiempoActual - lastMaldad >= intervaloMaldad) {
+      if (miMascota.educacion > 1) {
+        miMascota.educacion--;
+        Serial.println(F("Evento: Maldad - Educacion -1"));
+        lastMaldad = tiempoActual;    
+        //TODO: Mostrar mensaje en pantalla   
+      }else{
+        miMascota.isDead = true;
+      }
+    }
+    //aburrimiento
+    if (tiempoActual - lastAburrimiento >= intervaloAburrimiento) {
+      if (miMascota.felicidad > 1) {
+        miMascota.felicidad--;
+        Serial.println(F("Evento: Aburrimiento - Felicidad -1"));
+        lastAburrimiento = tiempoActual;
+        //TODO: Mostrar mensaje en pantalla 
+      }else{
+        miMascota.isDead = true;
+      }
+    }
+    //enfermedad
+    if (tiempoActual - lastEnfermedad >= intervaloEnfermedad) {
+      if (miMascota.enfermedad < 5) {
+        miMascota.enfermedad++;
+        Serial.println(F("Evento: Enfermedad - Enfermedad +1"));
+        lastEnfermedad = tiempoActual;
+        //TODO: Mostrar mensaje en pantalla
+      }else{
+        miMascota.isDead = true;
+      }
+    } 
+  }else{
+    // La mascota está muerta
+    mostrarMensaje("Tu mascota ha muerto");
+    Serial.println(F("La mascota ha muerto"));
+    // Aquí podríamos agregar lógica para reiniciar el juego o similar
   }
 }
 
@@ -392,7 +482,7 @@ void mostrarInformacion() {
   display.print(horas);
   display.print(":");
   if (minutos < 10){
-    display.println("0");
+    display.print("0");
   } 
   display.println(minutos);
   display.display();
