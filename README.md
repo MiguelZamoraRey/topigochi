@@ -1,7 +1,7 @@
 # Topigochi - Proyecto Arduino UNO R4
 
 ## 📋 Descripción
-Proyecto de mascota virtual (Topigochi) controlada por Arduino UNO R4, con pantalla OLED, botones de interacción y feedback sonoro mediante buzzer.
+Proyecto de mascota virtual (Topigochi) estilo Tamagotchi controlada por Arduino UNO R4, con pantalla OLED, botones de interacción y feedback sonoro mediante buzzer. Cuida a tu mascota virtual alimentándola, jugando con ella, limpiándola y manteniéndola sana y feliz.
 
 ## 🔧 Hardware Necesario
 
@@ -179,33 +179,85 @@ Proyecto de mascota virtual (Topigochi) controlada por Arduino UNO R4, con panta
 
 ### Uso
 1. Una vez cargado el programa, el display mostrará "Topigochi - Iniciando..."
-2. Después de 2 segundos aparecerá "Presiona un boton"
-3. Al presionar cada botón:
-   - **Botón 1**: Muestra "Boton 1" en pantalla
-   - **Botón 2**: Muestra "Boton 2" en pantalla
-   - **Botón 3**: Muestra "Boton 3" en pantalla
-4. Cada pulsación genera un tono de 1000Hz por 100ms en el buzzer
+2. El sistema inicializará tu mascota en fase "huevo" con todos sus atributos
+3. Usa los 3 botones para interactuar:
+   - **Botón 1**: Navegar por el menú (8 secciones)
+   - **Botón 2**: Ejecutar la acción seleccionada
+   - **Botón 3**: Cancelar y volver al menú
+
+### Sistema de Menú
+El juego cuenta con 8 secciones accesibles mediante los botones:
+
+| Sección | Icono | Función | Efecto |
+|---------|-------|---------|--------|
+| 1. Info | ℹ️ | Información | Muestra los atributos de la mascota |
+| 2. Comer | 🍔 | Alimentar | Aumenta saciedad +1 (máx. 5) |
+| 3. Acariciar | ❤️ | Jugar/Acariciar | Aumenta felicidad +1 (máx. 5) |
+| 4. Limpiar | 🧹 | Limpiar | Aumenta limpieza +1 (máx. 5) |
+| 5. Disciplinar | 📚 | Educar | Aumenta educación +1 (máx. 5) |
+| 6. Curar | 💊 | Medicina | Disminuye enfermedad -1 (mín. 0) |
+| 7. Luz | 💡 | Dormir/Despertar | Alterna estado despierto/dormido |
+| 8. Alerta | ⚠️ | Sistema | Icono automático de advertencias |
+
+**Navegación**:
+- Presiona **Botón 1** repetidamente para moverte entre secciones 1-7
+- Presiona **Botón 2** para ejecutar la acción de la sección actual
+- Presiona **Botón 3** para cancelar y regresar al menú
+
+### Atributos de la Mascota
+Tu mascota tiene los siguientes atributos (escala 1-5, excepto indicados):
+
+| Atributo | Inicial | Descripción |
+|----------|---------|-------------|
+| **Fase** | "huevo" | Etapa de crecimiento (huevo → bebé → adulto) |
+| **Salud** | 5 | Salud general (depende de otros atributos) |
+| **Felicidad** | 5 | Nivel de felicidad |
+| **Saciado** | 5 | Nivel de hambre (5 = lleno, 1 = hambriento) |
+| **Limpieza** | 5 | Nivel de higiene |
+| **Educación** | 2 | Nivel de disciplina/educación |
+| **Enfermedad** | 0 | Nivel de enfermedad (0 = sano, 5 = muy enfermo) |
+| **Tiempo Vivo** | 0 | Tiempo desde el inicio (milisegundos) |
+| **Estado** | Vivo | Vivo o muerto (isDead: false/true) |
+| **Despierto** | Sí | Despierto o durmiendo (true/false) |
 
 ### Monitor Serial
-Para debugging, abre el monitor serial (`Herramientas > Monitor Serie`) a 9600 baudios. Verás mensajes cada vez que presiones un botón.
+Para debugging, abre el monitor serial (`Herramientas > Monitor Serie`) a 9600 baudios. Verás:
+- Estado de inicialización
+- Escaneo de dispositivos I2C
+- Mensajes de navegación del menú
+- Acciones ejecutadas
+- Cambios en los atributos de la mascota
 
 ## 📝 Funcionalidades Actuales
 
-- ✅ Detección de pulsación de 3 botones
+- ✅ Sistema de mascota virtual con 10 atributos
+- ✅ Menú interactivo de 8 secciones navegable
+- ✅ 3 botones con funciones diferenciadas (navegar, acción, cancelar)
+- ✅ 6 acciones para cuidar la mascota
+- ✅ Sistema de información de estado
+- ✅ Control de luz (dormir/despertar)
+- ✅ Feedback sonoro diferenciado por acción
+- ✅ Detección de pulsación de botones
 - ✅ Visualización de mensajes en display OLED
-- ✅ Feedback sonoro mediante buzzer
 - ✅ Anti-rebote (debounce) en botones
 - ✅ Comunicación serial para debugging
+- ✅ Límites en los atributos (evita valores fuera de rango)
 
 ## 🔮 Futuras Funcionalidades
 
-- [ ] Sistema de menú interactivo
-- [ ] Mascota virtual con estados (feliz, triste, hambriento)
-- [ ] Minijuegos
-- [ ] Sistema de puntuación
-- [ ] Animaciones en OLED
-- [ ] Diferentes tonos/melodías en el buzzer
-- [ ] Guardado de estado (EEPROM)
+- [ ] Iconos visuales para cada sección del menú
+- [ ] Animaciones de la mascota según su estado
+- [ ] Sistema de degradación automática (hambre, limpieza, felicidad bajan con el tiempo)
+- [ ] Evolución de fases (huevo → bebé → adulto)
+- [ ] Cálculo dinámico de salud según otros atributos
+- [ ] Sistema de alerta (sección 8) que detecta necesidades
+- [ ] Minijuegos para aumentar felicidad
+- [ ] Efectos visuales al ejecutar acciones
+- [ ] Diferentes tonos/melodías según la acción
+- [ ] Sistema de muerte y reinicio
+- [ ] Guardado de estado en EEPROM
+- [ ] Múltiples tipos de comida
+- [ ] Sistema de recompensas
 
 ## 🛠️ Solución de Problemas
 
@@ -244,3 +296,4 @@ Miguel Zamora - Diciembre 2025
 - [Adafruit SSD1306 Library](https://github.com/adafruit/Adafruit_SSD1306)
 - [Adafruit GFX Library](https://github.com/adafruit/Adafruit-GFX-Library)
 - [I2C Communication Protocol](https://learn.sparkfun.com/tutorials/i2c)
+- [Tamagotchi - Wikipedia](https://es.wikipedia.org/wiki/Tamagotchi)

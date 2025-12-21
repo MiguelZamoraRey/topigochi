@@ -8,14 +8,117 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Planeado
-- Sistema de menú navegable con los 3 botones
-- Mascota virtual con diferentes estados emocionales
-- Sistema de hambre y felicidad
-- Minijuegos interactivos
-- Animaciones en el display OLED
-- Melodías y efectos de sonido variados
+- Iconos visuales para cada sección del menú (8 iconos: 4 arriba, 4 abajo)
+- Animaciones de la mascota según su estado emocional
+- Sistema de degradación automática (hambre, limpieza, felicidad bajan con el tiempo)
+- Evolución de fases (huevo → bebé → adulto → adulto especial)
+- Cálculo dinámico de salud basado en otros atributos
+- Sistema de alerta automática (sección 8) que detecta necesidades críticas
+- Minijuegos interactivos para aumentar felicidad
+- Efectos visuales al ejecutar acciones
+- Melodías y efectos de sonido variados según la acción
+- Sistema de muerte y reinicio de partida
 - Guardado persistente de datos en EEPROM
+- Múltiples tipos de comida con diferentes efectos
 - Sistema de logros o achievements
+
+---
+
+## [0.2.0] - 2024-12-21
+
+### ✨ Añadido
+- **Sistema de Mascota Virtual Completo**
+  - Estructura de datos `Mascota` con 10 atributos
+  - Fase de crecimiento (inicialmente "huevo")
+  - Atributos de cuidado: salud, felicidad, saciado, limpieza, educación
+  - Sistema de enfermedad (0-5)
+  - Control de tiempo vivo (milisegundos)
+  - Estados booleanos: isDead y despierto
+  - Función `inicializarMascota()` con valores por defecto
+
+- **Sistema de Menú Interactivo (8 secciones)**
+  - Enumeración `SeccionMenu` para navegación clara
+  - 7 secciones accesibles + 1 sección de alerta automática
+  - Navegación cíclica con Botón 1 (0→6→0)
+  - Sistema de feedback sonoro diferenciado por acción
+
+- **Funciones de Control Diferenciadas para los 3 Botones**
+  - **Botón 1**: `navegarMenu()` - Avanza por las secciones del menú
+  - **Botón 2**: `ejecutarAccion()` - Ejecuta la acción de la sección actual
+  - **Botón 3**: `cancelarAccion()` - Cancela y vuelve al menú principal
+  - Cada botón tiene un tono de feedback único
+
+- **6 Acciones de Cuidado Implementadas**
+  - `darDeComer()`: Incrementa saciedad (máx. 5)
+  - `acariciar()`: Incrementa felicidad (máx. 5)
+  - `limpiar()`: Incrementa limpieza (máx. 5)
+  - `disciplinar()`: Incrementa educación (máx. 5)
+  - `curar()`: Reduce enfermedad (mín. 0)
+  - `toggleLuz()`: Alterna entre despierto/dormido
+  - Todas las acciones incluyen validación de límites
+
+- **Sistema de Visualización**
+  - `mostrarMenu()`: Muestra la sección actual del menú
+  - `mostrarInformacion()`: Despliega todos los atributos de la mascota
+  - Preparado para futuras mejoras con iconos gráficos
+
+### 🔧 Cambiado
+- **Reorganización completa del código**
+  - Código dividido en secciones lógicas con comentarios separadores
+  - Todas las funciones documentadas con comentarios explicativos
+  - Nombres de variables y funciones más descriptivos
+  - Estructura modular para facilitar futuras expansiones
+
+- **Mejora del sistema de botones**
+  - Los botones ahora tienen funciones específicas y diferenciadas
+  - Sistema de debounce mejorado
+  - Espera activa hasta que el botón sea liberado
+
+- **Feedback sonoro mejorado**
+  - Botón 1 (navegar): 800Hz, 50ms
+  - Botón 2 (acción): 1200Hz, 100ms
+  - Botón 3 (cancelar): 600Hz, 100ms
+  - Tonos únicos permiten identificar acciones sin mirar la pantalla
+
+### 📝 Documentación
+- README actualizado con:
+  - Descripción del sistema de menú de 8 secciones
+  - Tabla de atributos de la mascota con valores iniciales
+  - Tabla de secciones del menú con iconos y efectos
+  - Instrucciones de navegación detalladas
+  - Funcionalidades actuales vs futuras actualizadas
+  - Referencia a Tamagotchi como inspiración
+
+### 🐛 Corregido
+- Prevención de valores fuera de rango en todos los atributos
+- Las acciones ahora informan cuando ya no pueden ejecutarse (ej: "ya está llena")
+
+### 📋 Notas de Desarrollo
+- La sección 8 (MENU_ALERTA) está reservada para alertas automáticas futuras
+- El menú salta de la sección 6 directamente a la 0 (no incluye sección 7 en navegación por error - a corregir)
+- Los atributos usan escala 1-5 excepto:
+  - Enfermedad: 0-5 (0 = sano)
+  - Tiempo vivo: milisegundos
+  - Estados booleanos: true/false
+- El uso de `enum` facilita la lectura y mantenimiento del código
+- Preparado para implementar sistema de degradación temporal
+
+### 🔧 Configuración Técnica Actualizada
+- **Estructura de datos:**
+  - `struct Mascota`: 49 bytes aproximadamente
+  - `enum SeccionMenu`: valores 0-7
+  - Variable global `miMascota`
+  - Variable global `menuActual`
+
+- **Feedback Sonoro por Acción:**
+  - Navegar menú: 800Hz
+  - Ejecutar acción: 1200Hz  
+  - Cancelar: 600Hz
+
+### 🐛 Bugs Conocidos
+- La navegación del menú incluye solo secciones 0-6, pero debería incluir sección 7 (Luz)
+- La función `mostrarMenu()` actualmente solo muestra texto, pendiente implementar iconos
+- No hay degradación temporal de atributos aún (la mascota no tiene hambre automáticamente)
 
 ---
 
@@ -124,34 +227,40 @@ Formato: `MAJOR.MINOR.PATCH` (ej: 1.2.3)
 
 | Versión | Fecha | Descripción |
 |---------|-------|-------------|
+| 0.2.0 | 2024-12-21 | Sistema de mascota virtual y menú interactivo |
 | 0.1.0 | 2024-12-21 | Release inicial - Funcionalidad básica de botones y display |
 
 ---
 
 ## Próximas Versiones Planeadas
 
-### [0.2.0] - Por definir
-- Sistema de menú básico
-- Navegación entre opciones con botones
-- Primeras animaciones simples
-
 ### [0.3.0] - Por definir
-- Implementación de mascota virtual básica
-- Estados emocionales (feliz, triste, neutral)
-- Sistema de hambre
+- Dibujo de iconos para las 8 secciones del menú
+- Resaltado visual del icono seleccionado
+- Animación básica de la mascota en pantalla central
+- Corrección del bug de navegación del menú
 
 ### [0.4.0] - Por definir
-- Primer minijuego
-- Sistema de puntuación
-- Guardado de estado básico
+- Sistema de degradación temporal (hambre/felicidad bajan cada X minutos)
+- Detección automática de necesidades críticas
+- Activación automática del icono de alerta (sección 8)
+- Evolución de huevo a bebé después de X tiempo
+
+### [0.5.0] - Por definir
+- Primer minijuego (adivinar secuencia de botones)
+- Diferentes animaciones según estado emocional
+- Cálculo dinámico de salud
+- Sistema de muerte (isDead = true cuando salud = 0)
 
 ### [1.0.0] - Por definir
 - Mascota virtual completa y funcional
 - Múltiples minijuegos
-- Sistema completo de estados y necesidades
-- Animaciones avanzadas
-- Melodías variadas
-- Persistencia de datos robusta
+- Sistema completo de evolución (3+ fases)
+- Animaciones avanzadas suaves
+- Melodías variadas por acción
+- Persistencia de datos robusta en EEPROM
+- Sistema de muerte y reinicio con estadísticas
+- Múltiples tipos de mascotas
 
 ---
 

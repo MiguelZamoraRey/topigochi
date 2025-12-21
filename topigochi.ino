@@ -14,9 +14,9 @@
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 // Pines de los botones
-#define BOTON_1 2
-#define BOTON_2 3
-#define BOTON_3 4
+#define BOTON_1 2  // Moverse por el menú
+#define BOTON_2 3  // Ejecutar acción
+#define BOTON_3 4  // Cancelar
 
 // Pin del buzzer
 #define BUZZER 8
@@ -24,6 +24,73 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 // Variables para debounce
 unsigned long lastDebounceTime = 0;
 unsigned long debounceDelay = 50;
+
+// ========================================
+// ESTRUCTURA DE LA MASCOTA
+// ========================================
+struct Mascota {
+  // Fase de crecimiento del bicho
+  String fase;           // Valores posibles: "huevo", "bebe", "adulto", etc.
+  
+  // Atributos principales (escala del 1 al 5)
+  int salud;            // Salud general (depende de otros valores)
+  int felicidad;        // Nivel de felicidad
+  int saciado;          // Nivel de hambre (5 = lleno, 1 = hambriento)
+  int limpieza;         // Nivel de limpieza
+  int educacion;        // Nivel de educación/disciplina
+  int enfermedad;       // Nivel de enfermedad (0 = sano, 5 = muy enfermo)
+  
+  // Control de tiempo
+  unsigned long tiempoVivo;  // Tiempo en milisegundos desde el inicio
+  
+  // Estados booleanos
+  bool isDead;          // ¿Está muerto?
+  bool despierto;       // ¿Está despierto o durmiendo?
+};
+
+// Instancia global de la mascota
+Mascota miMascota;
+
+// ========================================
+// SISTEMA DE MENÚ
+// ========================================
+// El menú tiene 8 secciones, navegables con los botones
+
+enum SeccionMenu {
+  MENU_INFO = 0,        // Información de la mascota
+  MENU_COMER = 1,       // Dar de comer
+  MENU_ACARICIAR = 2,   // Acariciar (aumenta felicidad)
+  MENU_LIMPIAR = 3,     // Limpiar
+  MENU_DISCIPLINAR = 4, // Disciplinar (aumenta educación)
+  MENU_CURAR = 5,       // Curar enfermedad
+  MENU_LUZ = 6,         // Encender/apagar luz
+  MENU_ALERTA = 7       // Icono de alerta (no accesible directamente)
+};
+
+// Variable que indica la sección actual del menú
+int menuActual = MENU_INFO;
+
+// ========================================
+// FUNCIONES DE INICIALIZACIÓN
+// ========================================
+
+// Inicializa los valores de la mascota a su estado inicial
+void inicializarMascota() {
+  miMascota.fase = "huevo";
+  miMascota.salud = 5;
+  miMascota.felicidad = 5;
+  miMascota.saciado = 5;
+  miMascota.limpieza = 5;
+  miMascota.educacion = 2;
+  miMascota.enfermedad = 0;
+  miMascota.tiempoVivo = 0;
+  miMascota.isDead = false;
+  miMascota.despierto = true;
+  
+  Serial.println(F("Mascota inicializada:"));
+  Serial.println(F("  Fase: huevo"));
+  Serial.println(F("  Todos los valores en estado inicial"));
+}
 
 void setup() {
   // Inicializar comunicación serial
@@ -38,6 +105,9 @@ void setup() {
   
   // Configurar pin del buzzer como salida
   pinMode(BUZZER, OUTPUT);
+  
+  // Inicializar la mascota con sus valores por defecto
+  inicializarMascota();
   
   // Escanear dispositivos I2C
   Serial.println(F("Escaneando dispositivos I2C..."));
@@ -115,30 +185,217 @@ void setup() {
 }
 
 void loop() {
-  // Leer estado de los botones (LOW cuando están presionados por el pull-up)
+  // ========================================
+  // LECTURA DE BOTONES
+  // ========================================
+  
+  // BOTÓN 1: Moverse por el menú
   if (digitalRead(BOTON_1) == LOW) {
     delay(debounceDelay); // Anti-rebote
     if (digitalRead(BOTON_1) == LOW) {
-      mostrarMensaje("Boton 1");
+      navegarMenu();
       while(digitalRead(BOTON_1) == LOW); // Esperar a que se suelte
     }
   }
   
+  // BOTÓN 2: Ejecutar acción del menú actual
   if (digitalRead(BOTON_2) == LOW) {
     delay(debounceDelay);
     if (digitalRead(BOTON_2) == LOW) {
-      mostrarMensaje("Boton 2");
+      ejecutarAccion();
       while(digitalRead(BOTON_2) == LOW);
     }
   }
   
+  // BOTÓN 3: Cancelar (volver al menú principal)
   if (digitalRead(BOTON_3) == LOW) {
     delay(debounceDelay);
     if (digitalRead(BOTON_3) == LOW) {
-      mostrarMensaje("Boton 3");
+      cancelarAccion();
       while(digitalRead(BOTON_3) == LOW);
     }
   }
+}
+
+// ========================================
+// FUNCIONES DEL SISTEMA DE MENÚ
+// ========================================
+
+// Navega a la siguiente sección del menú (Botón 1)
+void navegarMenu() {
+  // Avanzar al siguiente menú (0-6, saltamos el MENU_ALERTA)
+  menuActual++;
+  if (menuActual >= MENU_ALERTA) {
+    menuActual = MENU_INFO; // Volver al inicio
+  }
+  
+  // Feedback sonoro
+  tone(BUZZER, 800, 50);
+  
+  // Mostrar el menú actualizado
+  mostrarMenu();
+  
+  Serial.print(F("Menu actual: "));
+  Serial.println(menuActual);
+}
+
+// Ejecuta la acción correspondiente al menú actual (Botón 2)
+void ejecutarAccion() {
+  // Feedback sonoro
+  tone(BUZZER, 1200, 100);
+  
+  // Ejecutar según la sección actual
+  switch(menuActual) {
+    case MENU_INFO:
+      mostrarInformacion();
+      break;
+    case MENU_COMER:
+      darDeComer();
+      break;
+    case MENU_ACARICIAR:
+      acariciar();
+      break;
+    case MENU_LIMPIAR:
+      limpiar();
+      break;
+    case MENU_DISCIPLINAR:
+      disciplinar();
+      break;
+    case MENU_CURAR:
+      curar();
+      break;
+    case MENU_LUZ:
+      toggleLuz();
+      break;
+  }
+  
+  Serial.print(F("Accion ejecutada: "));
+  Serial.println(menuActual);
+}
+
+// Cancela la acción actual y vuelve al menú (Botón 3)
+void cancelarAccion() {
+  // Feedback sonoro diferente
+  tone(BUZZER, 600, 100);
+  
+  // Volver a mostrar el menú
+  mostrarMenu();
+  
+  Serial.println(F("Accion cancelada"));
+}
+
+// ========================================
+// FUNCIONES DE VISUALIZACIÓN
+// ========================================
+
+// Muestra el menú con los 8 iconos
+void mostrarMenu() {
+  display.clearDisplay();
+  
+  // TODO: Aquí dibujaremos los 8 iconos del menú
+  // 4 iconos arriba, 4 iconos abajo
+  // El icono del menuActual estará resaltado
+  
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  display.println(F("MENU:"));
+  display.print(F("Seccion: "));
+  display.println(menuActual);
+  
+  display.display();
+}
+
+// Muestra la información detallada de la mascota
+void mostrarInformacion() {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  
+  display.print(F("Fase: "));
+  display.println(miMascota.fase);
+  display.print(F("Salud: "));
+  display.println(miMascota.salud);
+  display.print(F("Feliz: "));
+  display.println(miMascota.felicidad);
+  display.print(F("Hambre: "));
+  display.println(miMascota.saciado);
+  display.print(F("Limpio: "));
+  display.println(miMascota.limpieza);
+  
+  display.display();
+}
+
+// ========================================
+// FUNCIONES DE ACCIONES
+// ========================================
+
+// Dar de comer: aumenta la saciedad en 1 (máximo 5)
+void darDeComer() {
+  if (miMascota.saciado < 5) {
+    miMascota.saciado++;
+    Serial.println(F("Dando de comer... Saciado +1"));
+  } else {
+    Serial.println(F("La mascota ya esta llena!"));
+  }
+  mostrarMenu();
+}
+
+// Acariciar: aumenta la felicidad en 1 (máximo 5)
+void acariciar() {
+  if (miMascota.felicidad < 5) {
+    miMascota.felicidad++;
+    Serial.println(F("Acariciando... Felicidad +1"));
+  } else {
+    Serial.println(F("La mascota ya esta muy feliz!"));
+  }
+  mostrarMenu();
+}
+
+// Limpiar: aumenta la limpieza en 1 (máximo 5)
+void limpiar() {
+  if (miMascota.limpieza < 5) {
+    miMascota.limpieza++;
+    Serial.println(F("Limpiando... Limpieza +1"));
+  } else {
+    Serial.println(F("La mascota ya esta muy limpia!"));
+  }
+  mostrarMenu();
+}
+
+// Disciplinar: aumenta la educación en 1 (máximo 5)
+void disciplinar() {
+  if (miMascota.educacion < 5) {
+    miMascota.educacion++;
+    Serial.println(F("Disciplinando... Educacion +1"));
+  } else {
+    Serial.println(F("La mascota ya esta bien educada!"));
+  }
+  mostrarMenu();
+}
+
+// Curar: disminuye la enfermedad en 1 (mínimo 0)
+void curar() {
+  if (miMascota.enfermedad > 0) {
+    miMascota.enfermedad--;
+    Serial.println(F("Curando... Enfermedad -1"));
+  } else {
+    Serial.println(F("La mascota ya esta sana!"));
+  }
+  mostrarMenu();
+}
+
+// Encender/Apagar luz: cambia el estado de despierto
+void toggleLuz() {
+  miMascota.despierto = !miMascota.despierto;
+  
+  if (miMascota.despierto) {
+    Serial.println(F("Luz encendida - Mascota despierta"));
+  } else {
+    Serial.println(F("Luz apagada - Mascota durmiendo"));
+  }
+  mostrarMenu();
 }
 
 void mostrarMensaje(const char* mensaje) {
