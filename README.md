@@ -28,9 +28,9 @@ Proyecto de mascota virtual (Topigochi) estilo Tamagotchi controlada por Arduino
 
 #### Arduino UNO R4 - Pinout
 ```
-                    Arduino UNO R4
-                 ┌─────────────────┐
-                 │                 │
+                  Arduino UNO R4
+                ┌─────────────────┐
+                │                 │
     RESET ──────┤ RESET       VIN ├───── 
                 │                 │
        A0 ──────┤ A0          GND ├───── GND (común)
@@ -40,15 +40,15 @@ Proyecto de mascota virtual (Topigochi) estilo Tamagotchi controlada por Arduino
   SDA  A4 ──────┤ A4 (SDA)    A5  ├───── SCL (Display)
   SCL  A5 ──────┤ A5 (SCL)        │
                 │                 │
-     GND ──────┤ GND         D13 ├───── 
+      GND ──────┤ GND         D13 ├───── 
                 │                 │
-  BOTON_1 D2 ──┤ D2          D12 ├───── 
-  BOTON_2 D3 ──┤ D3          D11 ├───── 
-  BOTON_3 D4 ──┤ D4          D10 ├───── 
+   BOTON_1 D2 ──┤ D2          D12 ├───── 
+   BOTON_2 D3 ──┤ D3          D11 ├───── 
+   BOTON_3 D4 ──┤ D4          D10 ├───── 
        D5 ──────┤ D5           D9 ├───── 
        D6 ──────┤ D6           D8 ├───── BUZZER
-       D7 ──────┤ D7               │
-                 └─────────────────┘
+       D7 ──────┤ D7              │
+                └─────────────────┘
 ```
 
 ### Conexiones Detalladas
@@ -138,7 +138,7 @@ Proyecto de mascota virtual (Topigochi) estilo Tamagotchi controlada por Arduino
    └───────────┤ BTN3 ├────┼───┤
                └──────┘    │   │
                            │   │
-    ┌──────────────────────┴───┴──┐
+    ┌──────────────────────┴───┴───┐
     │          PROTOBOARD          │
     │   5V Rail          GND Rail  │
     └──────────────────────────────┘
