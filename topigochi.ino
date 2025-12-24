@@ -3,846 +3,780 @@
  * Control de pantalla OLED 0.96" con 3 botones
  */
 
- #include <Wire.h>
- #include <Adafruit_GFX.h>
- #include <Adafruit_SSD1306.h>
- #include <EEPROM.h>
- 
- // Configuración del display OLED
- #define SCREEN_WIDTH 128
- #define SCREEN_HEIGHT 64
- #define OLED_RESET -1
- Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
- 
- // Pines de los botones
- #define BOTON_1 2  // Moverse por el menú
- #define BOTON_2 3  // Ejecutar acción
- #define BOTON_3 4  // Cancelar
- 
- // Tiempo interno
- unsigned long tiempoInicioSesion = 0;  // Momento en que se enciende el Arduino
- unsigned long tiempoAcumulado = 0;     // Tiempo total acumulado de sesiones anteriores
- unsigned long tiempoActual = 0;
- unsigned long tiempoTranscurrido = 0;  // Tiempo total (acumulado + sesión actual)
- unsigned long tiempoUltimoGuardado = 0;
- 
- // Intervalos de tiempo para eventos
- const unsigned long intervaloComida = 28800000; //cada 8 horas
- const unsigned long intervaloLimpieza = 43200000;  //cada 12 horas
- const unsigned long intervaloMaldad = 43200000; //cada 12 horas
- const unsigned long intervaloAburrimiento = 28800000; //cada 8 horas
- const unsigned long intervaloEnfermedad = 86400000;  //cada 24 horas
- 
- //variacion en los eventos
- const unsigned long variacionMaxima = 1800000; //30 minutos
- 
- //ultima vez de la accion
- unsigned long lastComida = 0; //cada 8 horas
- unsigned long lastLimpieza = 0;  //cada 12 horas
- unsigned long lastMaldad = 0; //cada 12 horas
- unsigned long lastAburrimiento = 0; //cada 8 horas
- unsigned long lastEnfermedad = 0;  //cada 24 horas
- 
- // Pin del buzzer
- #define BUZZER 8
- 
- // Variables para debounce
- unsigned long lastDebounceTime = 0;
- unsigned long debounceDelay = 50;
- 
- // Variables para timeout del menú
- unsigned long ultimaInteraccion = 0;
- const unsigned long TIMEOUT_MENU = 5000; // 5 segundos en milisegundos
- bool menuActivo = false; // Indica si estamos en el menú o en pantalla principal
- 
- // Marca de validación para EEPROM
- #define EEPROM_MAGIC 0xABCD
- #define EEPROM_MAGIC_ADDR 0
- 
- // ========================================
- // ESTRUCTURA DE LA MASCOTA
- // ========================================
- struct Mascota {
-   // Fase de crecimiento del bicho
-   char fase[10];           // String convertido a array de chars
-   
-   // Atributos principales (escala del 1 al 5)
-   int salud;            // Salud general (depende de otros valores)
-   int felicidad;        // Nivel de felicidad
-   int saciado;          // Nivel de hambre (5 = lleno, 1 = hambriento)
-   int limpieza;         // Nivel de limpieza
-   int educacion;        // Nivel de educación/disciplina
-   int enfermedad;       // Nivel de enfermedad (0 = sano, 5 = muy enfermo)
-   
-   // Control de tiempo
-   unsigned long tiempoVivo;  // Tiempo en milisegundos desde el inicio
-   
-   // Estados booleanos
-   bool isDead;          // ¿Está muerto?
-   bool despierto;       // ¿Está despierto o durmiendo?
- };
- 
- // Instancia global de la mascota
- Mascota miMascota;
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <EEPROM.h>
 
- // ========================================
- // Variables de iconos
- // ========================================
+// Configuración del display OLED
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET -1
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+// Pines de los botones
+#define BOTON_1 2  // Moverse por el menú
+#define BOTON_2 3  // Ejecutar acción
+#define BOTON_3 4  // Cancelar
+
+// Tiempo interno
+unsigned long tiempoInicioSesion = 0;
+unsigned long tiempoAcumulado = 0;
+unsigned long tiempoActual = 0;
+unsigned long tiempoTranscurrido = 0;
+unsigned long tiempoUltimoGuardado = 0;
+
+// Intervalos de tiempo para eventos
+const unsigned long intervaloComida = 28800000; //cada 8 horas
+const unsigned long intervaloLimpieza = 43200000;  //cada 12 horas
+const unsigned long intervaloMaldad = 43200000; //cada 12 horas
+const unsigned long intervaloAburrimiento = 28800000; //cada 8 horas
+const unsigned long intervaloEnfermedad = 86400000;  //cada 24 horas
+
+// Variación en los eventos
+const unsigned long variacionMaxima = 1800000; //30 minutos
+
+// Última vez de la acción
+unsigned long lastComida = 0;
+unsigned long lastLimpieza = 0;
+unsigned long lastMaldad = 0;
+unsigned long lastAburrimiento = 0;
+unsigned long lastEnfermedad = 0;
+
+// Pin del buzzer
+#define BUZZER 8
+
+// Variables para debounce
+unsigned long lastDebounceTime = 0;
+unsigned long debounceDelay = 50;
+
+// Variables para timeout del menú
+unsigned long ultimaInteraccion = 0;
+const unsigned long TIMEOUT_MENU = 5000; // 5 segundos en milisegundos
+bool menuActivo = false;
+
+// Animation State
+bool isAnimationRunning = false;
+int animationFrame = 0;
+unsigned long lastFrameTime = 0;
+const unsigned long frameDelay = 300; // 300ms entre frames
+
+// Marca de validación para EEPROM
+#define EEPROM_MAGIC 0xABCD
+#define EEPROM_MAGIC_ADDR 0
+
+// ========================================
+// ESTRUCTURA DE LA MASCOTA
+// ========================================
+struct Mascota {
+  char fase[10];
+  int salud;
+  int felicidad;
+  int saciado;
+  int limpieza;
+  int educacion;
+  int enfermedad;
+  unsigned long tiempoVivo;
+  bool isDead;
+  bool despierto;
+};
+
+// Instancia global de la mascota
+Mascota miMascota;
+
+// ========================================
+// Variables de iconos
+// ========================================
 // 'Acariciar', 32x16px
 const unsigned char epd_bitmap_Acariciar [] PROGMEM = {
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x70, 0x00, 
-	0x00, 0x1f, 0xf8, 0x00, 0x00, 0x1f, 0xf8, 0x00, 0x00, 0x1f, 0xf8, 0x00, 0x00, 0x0f, 0xf0, 0x00, 
-	0x00, 0x07, 0xe0, 0x00, 0x00, 0x03, 0xc0, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x70, 0x00,
+  0x00, 0x1f, 0xf8, 0x00, 0x00, 0x1f, 0xf8, 0x00, 0x00, 0x1f, 0xf8, 0x00, 0x00, 0x0f, 0xf0, 0x00,
+  0x00, 0x07, 0xe0, 0x00, 0x00, 0x03, 0xc0, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 // 'alarma', 32x16px
 const unsigned char epd_bitmap_Alarma [] PROGMEM = {
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x02, 0x40, 0x00, 
-	0x00, 0x04, 0x20, 0x00, 0x00, 0x09, 0x90, 0x00, 0x00, 0x09, 0x90, 0x00, 0x00, 0x09, 0x90, 0x00, 
-	0x00, 0x10, 0x08, 0x00, 0x00, 0x21, 0x84, 0x00, 0x00, 0x20, 0x04, 0x00, 0x00, 0x3f, 0xfc, 0x00, 
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x02, 0x40, 0x00,
+  0x00, 0x04, 0x20, 0x00, 0x00, 0x09, 0x90, 0x00, 0x00, 0x09, 0x90, 0x00, 0x00, 0x09, 0x90, 0x00,
+  0x00, 0x10, 0x08, 0x00, 0x00, 0x21, 0x84, 0x00, 0x00, 0x20, 0x04, 0x00, 0x00, 0x3f, 0xfc, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 // 'Comer', 32x16px
 const unsigned char epd_bitmap_Comer [] PROGMEM = {
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2a, 0x30, 0x00, 
-	0x00, 0x2a, 0x30, 0x00, 0x00, 0x2a, 0x30, 0x00, 0x00, 0x1c, 0x30, 0x00, 0x00, 0x08, 0x30, 0x00, 
-	0x00, 0x08, 0x20, 0x00, 0x00, 0x08, 0x20, 0x00, 0x00, 0x08, 0x20, 0x00, 0x00, 0x08, 0x30, 0x00, 
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2a, 0x30, 0x00,
+  0x00, 0x2a, 0x30, 0x00, 0x00, 0x2a, 0x30, 0x00, 0x00, 0x1c, 0x30, 0x00, 0x00, 0x08, 0x30, 0x00,
+  0x00, 0x08, 0x20, 0x00, 0x00, 0x08, 0x20, 0x00, 0x00, 0x08, 0x20, 0x00, 0x00, 0x08, 0x30, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 // 'Curar', 32x16px
 const unsigned char epd_bitmap_Curar [] PROGMEM = {
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xc0, 0x00, 
-	0x00, 0x03, 0xc0, 0x00, 0x00, 0x03, 0xc0, 0x00, 0x00, 0x1f, 0xf8, 0x00, 0x00, 0x1f, 0xf8, 0x00, 
-	0x00, 0x1f, 0xf8, 0x00, 0x00, 0x1f, 0xf8, 0x00, 0x00, 0x03, 0xc0, 0x00, 0x00, 0x03, 0xc0, 0x00, 
-	0x00, 0x03, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xc0, 0x00,
+  0x00, 0x03, 0xc0, 0x00, 0x00, 0x03, 0xc0, 0x00, 0x00, 0x1f, 0xf8, 0x00, 0x00, 0x1f, 0xf8, 0x00,
+  0x00, 0x1f, 0xf8, 0x00, 0x00, 0x1f, 0xf8, 0x00, 0x00, 0x03, 0xc0, 0x00, 0x00, 0x03, 0xc0, 0x00,
+  0x00, 0x03, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 // 'Educar', 32x16px
 const unsigned char epd_bitmap_Educar [] PROGMEM = {
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00, 0x00, 0x50, 0x00, 
-	0x00, 0x00, 0x50, 0x00, 0x00, 0x0a, 0xd0, 0x00, 0x00, 0x15, 0x50, 0x00, 0x00, 0x14, 0xf0, 0x00, 
-	0x00, 0x11, 0x10, 0x00, 0x00, 0x10, 0x30, 0x00, 0x00, 0x1c, 0x60, 0x00, 0x00, 0x07, 0xc0, 0x00, 
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00, 0x00, 0x50, 0x00,
+  0x00, 0x00, 0x50, 0x00, 0x00, 0x0a, 0xd0, 0x00, 0x00, 0x15, 0x50, 0x00, 0x00, 0x14, 0xf0, 0x00,
+  0x00, 0x11, 0x10, 0x00, 0x00, 0x10, 0x30, 0x00, 0x00, 0x1c, 0x60, 0x00, 0x00, 0x07, 0xc0, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 // 'Limpiar', 32x16px
 const unsigned char epd_bitmap_Limpiar [] PROGMEM = {
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x00, 
-	0x00, 0x00, 0x38, 0x00, 0x00, 0x00, 0x70, 0x00, 0x00, 0x00, 0xe0, 0x00, 0x00, 0x1d, 0xc0, 0x00, 
-	0x00, 0x3f, 0x80, 0x00, 0x00, 0x3f, 0x80, 0x00, 0x00, 0x4f, 0xc0, 0x00, 0x00, 0x13, 0xc0, 0x00, 
-	0x00, 0x04, 0xc0, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x00,
+  0x00, 0x00, 0x38, 0x00, 0x00, 0x00, 0x70, 0x00, 0x00, 0x00, 0xe0, 0x00, 0x00, 0x1d, 0xc0, 0x00,
+  0x00, 0x3f, 0x80, 0x00, 0x00, 0x3f, 0x80, 0x00, 0x00, 0x4f, 0xc0, 0x00, 0x00, 0x13, 0xc0, 0x00,
+  0x00, 0x04, 0xc0, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 // 'luz', 32x16px
 const unsigned char epd_bitmap_Luz [] PROGMEM = {
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xe0, 0x00, 0x00, 0x1f, 0xfc, 0x00, 0x00, 0x3f, 0xfe, 0x00, 
-	0x00, 0x3f, 0xfe, 0x00, 0x00, 0x3f, 0xfe, 0x00, 0x00, 0x3f, 0xfe, 0x00, 0x00, 0x3f, 0xfe, 0x00, 
-	0x00, 0x00, 0x88, 0x00, 0x00, 0x00, 0x88, 0x00, 0x00, 0x01, 0xc4, 0x00, 0x00, 0x03, 0xe0, 0x00, 
-	0x00, 0x03, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xe0, 0x00, 0x00, 0x1f, 0xfc, 0x00, 0x00, 0x3f, 0xfe, 0x00,
+  0x00, 0x3f, 0xfe, 0x00, 0x00, 0x3f, 0xfe, 0x00, 0x00, 0x3f, 0xfe, 0x00, 0x00, 0x3f, 0xfe, 0x00,
+  0x00, 0x00, 0x88, 0x00, 0x00, 0x00, 0x88, 0x00, 0x00, 0x01, 0xc4, 0x00, 0x00, 0x03, 0xe0, 0x00,
+  0x00, 0x03, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 // 'Alien1', 32x16px
 const unsigned char epd_bitmap_Alien1 [] PROGMEM = {
-	0x00, 0x82, 0x00, 0x00, 0x01, 0x45, 0x00, 0x00, 0x00, 0xfe, 0x00, 0x00, 0x00, 0x38, 0x00, 0x00, 
-	0x00, 0x30, 0x00, 0x00, 0x00, 0x30, 0x00, 0x00, 0x00, 0x18, 0x00, 0x00, 0x03, 0x98, 0x00, 0x00, 
-	0x07, 0xd8, 0x00, 0x00, 0x0f, 0xf0, 0x00, 0x00, 0x1f, 0xc0, 0x00, 0x00, 0x34, 0x80, 0x00, 0x00, 
-	0x09, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x0e, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  0x00, 0x82, 0x00, 0x00, 0x01, 0x45, 0x00, 0x00, 0x00, 0xfe, 0x00, 0x00, 0x00, 0x38, 0x00, 0x00,
+  0x00, 0x30, 0x00, 0x00, 0x00, 0x30, 0x00, 0x00, 0x00, 0x18, 0x00, 0x00, 0x03, 0x98, 0x00, 0x00,
+  0x07, 0xd8, 0x00, 0x00, 0x0f, 0xf0, 0x00, 0x00, 0x1f, 0xc0, 0x00, 0x00, 0x34, 0x80, 0x00, 0x00,
+  0x09, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x0e, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 // 'Lupa', 32x16px
 const unsigned char epd_bitmap_Lupa [] PROGMEM = {
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0f, 0xc0, 0x00, 0x00, 0x10, 0x20, 0x00, 
-	0x00, 0x20, 0x10, 0x00, 0x00, 0x40, 0x08, 0x00, 0x00, 0x40, 0x08, 0x00, 0x00, 0x40, 0x08, 0x00, 
-	0x00, 0x20, 0x18, 0x00, 0x00, 0x10, 0x3c, 0x00, 0x00, 0x0f, 0xfc, 0x00, 0x00, 0x00, 0x1e, 0x00, 
-	0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x03, 0x80, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0f, 0xc0, 0x00, 0x00, 0x10, 0x20, 0x00,
+  0x00, 0x20, 0x10, 0x00, 0x00, 0x40, 0x08, 0x00, 0x00, 0x40, 0x08, 0x00, 0x00, 0x40, 0x08, 0x00,
+  0x00, 0x20, 0x18, 0x00, 0x00, 0x10, 0x3c, 0x00, 0x00, 0x0f, 0xfc, 0x00, 0x00, 0x00, 0x1e, 0x00,
+  0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x03, 0x80, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00
 };
- 
- // ========================================
- // SISTEMA DE MENÚ
- // ========================================
- // El menú tiene 8 secciones, navegables con los botones
- 
- enum SeccionMenu {
-   MENU_INFO = 0,        // Información de la mascota
-   MENU_COMER = 1,       // Dar de comer
-   MENU_ACARICIAR = 2,   // Acariciar (aumenta felicidad)
-   MENU_LIMPIAR = 3,     // Limpiar
-   MENU_DISCIPLINAR = 4, // Disciplinar (aumenta educación)
-   MENU_CURAR = 5,       // Curar enfermedad
-   MENU_LUZ = 6,         // Encender/apagar luz
-   MENU_ALERTA = 7       // Icono de alerta (no accesible directamente)
- };
- 
- // Variable que indica la sección actual del menú
- int menuActual = MENU_INFO;
- 
- // ========================================
- // FUNCIONES DE EEPROM
- // ========================================
- void guardarMascota() {
-   int dir = 2; // Empezar después del magic number
-   
-   // Actualizar tiempo total antes de guardar
-   tiempoTranscurrido = tiempoAcumulado + (millis() - tiempoInicioSesion);
-   
-   // Guardar magic number
-   EEPROM.put(EEPROM_MAGIC_ADDR, EEPROM_MAGIC);
- 
-   // Guardar fase
-   for (int i = 0; i < 10; i++) {
-     EEPROM.write(dir++, miMascota.fase[i]);
-   }
- 
-   // Guardar enteros
-   EEPROM.put(dir, miMascota.salud); dir += sizeof(miMascota.salud);
-   EEPROM.put(dir, miMascota.felicidad); dir += sizeof(miMascota.felicidad);
-   EEPROM.put(dir, miMascota.saciado); dir += sizeof(miMascota.saciado);
-   EEPROM.put(dir, miMascota.limpieza); dir += sizeof(miMascota.limpieza);
-   EEPROM.put(dir, miMascota.educacion); dir += sizeof(miMascota.educacion);
-   EEPROM.put(dir, miMascota.enfermedad); dir += sizeof(miMascota.enfermedad);
-   EEPROM.put(dir, miMascota.tiempoVivo); dir += sizeof(miMascota.tiempoVivo);
-   EEPROM.put(dir, miMascota.isDead); dir += sizeof(miMascota.isDead);
-   EEPROM.put(dir, miMascota.despierto); dir += sizeof(miMascota.despierto);
- 
-   // Guardar tiempos de eventos
-   EEPROM.put(dir, lastComida); dir += sizeof(lastComida);
-   EEPROM.put(dir, lastLimpieza); dir += sizeof(lastLimpieza);
-   EEPROM.put(dir, lastMaldad); dir += sizeof(lastMaldad);
-   EEPROM.put(dir, lastAburrimiento); dir += sizeof(lastAburrimiento);
-   EEPROM.put(dir, lastEnfermedad); dir += sizeof(lastEnfermedad);
-   EEPROM.put(dir, tiempoActual); dir += sizeof(tiempoActual);
-   EEPROM.put(dir, tiempoTranscurrido); dir += sizeof(tiempoTranscurrido);
- 
-   // Actualizar tiempo del último guardado
-   tiempoUltimoGuardado = millis();
-   EEPROM.put(dir, tiempoUltimoGuardado); dir += sizeof(tiempoUltimoGuardado); 
- 
-   Serial.print(F("Mascota guardada - Tiempo total: "));
-   Serial.print(tiempoTranscurrido / 60000);
-   Serial.println(F(" minutos"));
- }
- 
- bool cargarMascota() {
-   int dir = 2; // Empezar después del magic number
-   
-   // Verificar magic number
-   uint16_t magic;
-   EEPROM.get(EEPROM_MAGIC_ADDR, magic);
-   
-   if (magic != EEPROM_MAGIC) {
-     Serial.println(F("No hay datos guardados en EEPROM, inicializando mascota"));
-     return false;
-   }
- 
-   // Cargar fase
-   for (int i = 0; i < 10; i++) {
-     miMascota.fase[i] = EEPROM.read(dir++);
-   }
- 
-   // Cargar enteros
-   EEPROM.get(dir, miMascota.salud); dir += sizeof(miMascota.salud);
-   EEPROM.get(dir, miMascota.felicidad); dir += sizeof(miMascota.felicidad);
-   EEPROM.get(dir, miMascota.saciado); dir += sizeof(miMascota.saciado);
-   EEPROM.get(dir, miMascota.limpieza); dir += sizeof(miMascota.limpieza);
-   EEPROM.get(dir, miMascota.educacion); dir += sizeof(miMascota.educacion);
-   EEPROM.get(dir, miMascota.enfermedad); dir += sizeof(miMascota.enfermedad);
-   EEPROM.get(dir, miMascota.tiempoVivo); dir += sizeof(miMascota.tiempoVivo);
-   EEPROM.get(dir, miMascota.isDead); dir += sizeof(miMascota.isDead);
-   EEPROM.get(dir, miMascota.despierto); dir += sizeof(miMascota.despierto);
- 
-   // Cargar tiempos de eventos
-   EEPROM.get(dir, lastComida); dir += sizeof(lastComida);
-   EEPROM.get(dir, lastLimpieza); dir += sizeof(lastLimpieza);
-   EEPROM.get(dir, lastMaldad); dir += sizeof(lastMaldad);
-   EEPROM.get(dir, lastAburrimiento); dir += sizeof(lastAburrimiento);
-   EEPROM.get(dir, lastEnfermedad); dir += sizeof(lastEnfermedad);
-   EEPROM.get(dir, tiempoActual); dir += sizeof(tiempoActual);
-   EEPROM.get(dir, tiempoTranscurrido); dir += sizeof(tiempoTranscurrido);
-   EEPROM.get(dir, tiempoUltimoGuardado); dir += sizeof(tiempoUltimoGuardado);
- 
-   Serial.println(F("Mascota cargada desde EEPROM"));
-   return true;
- }
- 
- // ========================================
- // FUNCIONES DE INICIALIZACIÓN
- // ========================================
- 
- // Inicializa los valores de la mascota a su estado inicial
- void inicializarMascota() {
-   strcpy(miMascota.fase, "huevo");
-   miMascota.salud = 5;
-   miMascota.felicidad = 5;
-   miMascota.saciado = 5;
-   miMascota.limpieza = 5;
-   miMascota.educacion = 2;
-   miMascota.enfermedad = 0;
-   miMascota.tiempoVivo = 0;
-   miMascota.isDead = false;
-   miMascota.despierto = true;
-   
-   Serial.println(F("Mascota inicializada:"));
-   Serial.println(F("  Fase: huevo"));
-   Serial.println(F("  Todos los valores en estado inicial"));
- }
- 
- void setup() {
-   // Inicializar comunicación serial
-   Serial.begin(9600);
-   delay(1000); // Esperar a que el serial esté listo
-   Serial.println(F("=== Topigochi Iniciando ==="));
-   
-   // Configurar pines de botones como entrada con pull-up
-   pinMode(BOTON_1, INPUT_PULLUP);
-   pinMode(BOTON_2, INPUT_PULLUP);
-   pinMode(BOTON_3, INPUT_PULLUP);
-   
-   // Configurar pin del buzzer como salida
-   pinMode(BUZZER, OUTPUT);
-   
-   // Escanear dispositivos I2C
-   Serial.println(F("Escaneando dispositivos I2C..."));
-   Wire.begin();
-   byte error, address;
-   int nDevices = 0;
-   
-   for(address = 1; address < 127; address++) {
-     Wire.beginTransmission(address);
-     error = Wire.endTransmission();
-     
-     if (error == 0) {
-       Serial.print(F("Dispositivo I2C encontrado en 0x"));
-       if (address < 16) Serial.print("0");
-       Serial.println(address, HEX);
-       nDevices++;
-     }
-   }
-   
-   if (nDevices == 0) {
-     Serial.println(F("No se encontraron dispositivos I2C!"));
-     Serial.println(F("Verifica las conexiones SDA y SCL"));
-   } else {
-     Serial.print(F("Total dispositivos encontrados: "));
-     Serial.println(nDevices);
-   }
-   
-   // Intentar inicializar display OLED con dirección 0x3C
-   Serial.println(F("Intentando inicializar display en 0x3C..."));
-   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-     Serial.println(F("Fallo con 0x3C, intentando 0x3D..."));
-     
-     // Intentar con dirección alternativa 0x3D
-     if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) {
-       Serial.println(F("ERROR: No se pudo inicializar el display OLED"));
-       Serial.println(F("Verifica:"));
-       Serial.println(F("1. Conexiones: SDA->A4, SCL->A5, VCC->5V, GND->GND"));
-       Serial.println(F("2. Display encendido"));
-       Serial.println(F("3. Librerias Adafruit instaladas"));
-       
-       // NO hacer bucle infinito, solo continuar sin display
-       delay(2000);
-     } else {
-       Serial.println(F("Display inicializado exitosamente en 0x3D!"));
-     }
-   } else {
-     Serial.println(F("Display inicializado exitosamente en 0x3C!"));
-   }
-   
-   // Limpiar el buffer
-   display.clearDisplay();
-   
-   // Mostrar mensaje de bienvenida
-   display.setTextSize(1);
-   display.setTextColor(SSD1306_WHITE);
-   display.setCursor(0, 0);
-   display.println(F("Topigochi"));
-   display.println(F("Iniciando..."));
-   display.display();
-   Serial.println(F("Mensaje de bienvenida mostrado"));
-   delay(2000);
- 
-   // Inicializar o cargar la mascota
-   if (!cargarMascota()) {
-     // Mascota nueva
-     inicializarMascota();
-     tiempoInicioSesion = millis();
-     tiempoAcumulado = 0;
-     tiempoTranscurrido = 0;
-     lastComida = millis();
-     lastLimpieza = millis();
-     lastMaldad = millis();
-     lastAburrimiento = millis();
-     lastEnfermedad = millis();
-     //COMENTADO GUARDAR MASCOTA PARA NO DAñar EEPROM
-     //guardarMascota();
-     Serial.println(F("Nueva mascota creada"));
-   } else {
-     // Mascota cargada - continuar desde donde se quedó
-     tiempoInicioSesion = millis();
-     tiempoAcumulado = tiempoTranscurrido; // El tiempo que ya tenía guardado
-     Serial.print(F("Mascota cargada - Tiempo previo: "));
-     Serial.print(tiempoAcumulado / 60000);
-     Serial.println(F(" minutos"));
-   }
-   
-   // Limpiar pantalla
-   display.clearDisplay();
-   display.setCursor(0, 0);
-   display.println(F("Presiona un boton"));
-   display.display();
-   Serial.println(F("Sistema listo!"));
- }
- 
- // Variables para sistema de guardado inteligente
- bool datosModificados = false;
- const unsigned long INTERVALO_GUARDADO_NORMAL = 300000; // 5 minutos
- const unsigned long INTERVALO_GUARDADO_CRITICO = 60000;  // 1 minuto si hay cambios
- 
- void loop() {
-   // ========================================
-   // Reloj interno - Calcular tiempo total
-   // ========================================
-   tiempoActual = millis();
-   // Tiempo total = tiempo acumulado de antes + tiempo de esta sesión
-   tiempoTranscurrido = tiempoAcumulado + (tiempoActual - tiempoInicioSesion);
- 
-   // Sistema de guardado inteligente
-   unsigned long tiempoDesdeUltimoGuardado = tiempoActual - tiempoUltimoGuardado;
-   
-   if (datosModificados && tiempoDesdeUltimoGuardado > INTERVALO_GUARDADO_CRITICO) {
-     // Hay cambios importantes, guardar en 1 minuto
-     //COMENTADO GUARDAR MASCOTA PARA NO DAñar EEPROM
-     //guardarMascota();
-     datosModificados = false;
-     //Serial.println(F("Guardado critico realizado"));
-   } else if (tiempoDesdeUltimoGuardado > INTERVALO_GUARDADO_NORMAL) {
-     // Guardado de rutina cada 5 minutos
-     //COMENTADO GUARDAR MASCOTA PARA NO DAñar EEPROM
-     //guardarMascota();
-     //Serial.println(F("Auto-guardado realizado"));
-   }
- 
-   // ========================================
-   // Eventos
-   // ========================================
-   cheackearEventos();
- 
-   // ========================================
-   // VERIFICAR TIMEOUT DEL MENÚ
-   // ========================================
-   if (menuActivo && (millis() - ultimaInteraccion > TIMEOUT_MENU)) {
-     // Han pasado 5 segundos sin interacción, volver a pantalla principal
-     menuActivo = false;
-     dibujarPantalla();
-     Serial.println(F("Timeout del menu - Volviendo a pantalla principal"));
-   }
-   
-   // ========================================
-   // LECTURA DE BOTONES
-   // ========================================
-   
-   // BOTÓN 1: Moverse por el menú
-   if (digitalRead(BOTON_1) == LOW) {
-     delay(debounceDelay); // Anti-rebote
-     if (digitalRead(BOTON_1) == LOW) {
-      if(miMascota.despierto==false){
-        // Si la mascota está durmiendo, no permitir menú
-        toggleLuz(); // Encender luz y despertar
-        tone(BUZZER, 400, 100); // Tono de error
-        while(digitalRead(BOTON_1) == LOW); // Esperar a que se suelte
-        return;
-      }else{
-        navegarMenu();
-        while(digitalRead(BOTON_1) == LOW); // Esperar a que se suelte
-      }
-     }
-   }
-   
-   // BOTÓN 2: Ejecutar acción del menú actual
-   if (digitalRead(BOTON_2) == LOW) {
-     delay(debounceDelay);
-     if (digitalRead(BOTON_2) == LOW) {
-      if(miMascota.despierto==false){
-        // Si la mascota está durmiendo, no permitir menú
-        toggleLuz(); // Encender luz y despertar
-        tone(BUZZER, 400, 100); // Tono de error
-        while(digitalRead(BOTON_1) == LOW); // Esperar a que se suelte
-        return;
-      }else{
-       ejecutarAccion();
-       while(digitalRead(BOTON_2) == LOW);
-      }
-     }
-   }
-   
-   // BOTÓN 3: Cancelar (volver al menú principal)
-   if (digitalRead(BOTON_3) == LOW) {
-     delay(debounceDelay);
-     if (digitalRead(BOTON_3) == LOW) {
-      if(miMascota.despierto==false){
-        // Si la mascota está durmiendo, no permitir menú
-        toggleLuz(); // Encender luz y despertar
-        tone(BUZZER, 400, 100); // Tono de error
-        while(digitalRead(BOTON_1) == LOW); // Esperar a que se suelte
-        return;
-      }else{
-       cancelarAccion();
-       while(digitalRead(BOTON_3) == LOW);
-      }
-     }
-   }
- }
- 
- // ========================================
- // FUNCIONES DE EVENTOS
- // ========================================
- void cheackearEventos() {
-   if(miMascota.isDead==false){
-     //comida
-     if (tiempoActual - lastComida >= intervaloComida) {
-       if (miMascota.saciado > 1) {
-         miMascota.saciado--;
-         Serial.println(F("Evento: Hambre - Saciado -1"));
-         lastComida = tiempoActual;
-         datosModificados = true; // Marcar que hay cambios
-         //TODO: Mostrar mensaje en pantalla
-       }else{
-         miMascota.isDead = true;
-         datosModificados = true;
-       }
-     }
-     //limpieza
-     if (tiempoActual - lastLimpieza >= intervaloLimpieza) {
-       if (miMascota.limpieza > 1) {
-         miMascota.limpieza--;
-         Serial.println(F("Evento: Suciedad - Limpieza -1"));
-         lastLimpieza = tiempoActual;
-         datosModificados = true;
-         //TODO: Mostrar mensaje en pantalla
-       }else{
-         miMascota.isDead = true;
-         datosModificados = true;
-       }
-     }
-     //maldad
-     if (tiempoActual - lastMaldad >= intervaloMaldad) {
-       if (miMascota.educacion > 1) {
-         miMascota.educacion--;
-         Serial.println(F("Evento: Maldad - Educacion -1"));
-         lastMaldad = tiempoActual;
-         datosModificados = true;
-         //TODO: Mostrar mensaje en pantalla   
-       }else{
-         miMascota.isDead = true;
-         datosModificados = true;
-       }
-     }
-     //aburrimiento
-     if (tiempoActual - lastAburrimiento >= intervaloAburrimiento) {
-       if (miMascota.felicidad > 1) {
-         miMascota.felicidad--;
-         Serial.println(F("Evento: Aburrimiento - Felicidad -1"));
-         lastAburrimiento = tiempoActual;
-         datosModificados = true;
-         //TODO: Mostrar mensaje en pantalla 
-       }else{
-         miMascota.isDead = true;
-         datosModificados = true;
-       }
-     }
-     //enfermedad
-     if (tiempoActual - lastEnfermedad >= intervaloEnfermedad) {
-       if (miMascota.enfermedad < 5) {
-         miMascota.enfermedad++;
-         Serial.println(F("Evento: Enfermedad - Enfermedad +1"));
-         lastEnfermedad = tiempoActual;
-         datosModificados = true;
-         //TODO: Mostrar mensaje en pantalla
-       }else{
-         miMascota.isDead = true;
-         datosModificados = true;
-       }
-     } 
-   }else{
-     // La mascota está muerta
-     mostrarMensaje("Tu mascota ha muerto");
-     Serial.println(F("La mascota ha muerto"));
-     // Aquí podríamos agregar lógica para reiniciar el juego o similar
-   }
- }
- 
- // ========================================
- // FUNCIONES DEL SISTEMA DE MENÚ
- // ========================================
- 
- // Navega a la siguiente sección del menú (Botón 1)
- void navegarMenu() {
-   // Activar menú y actualizar tiempo de interacción
-   menuActivo = true;
-   ultimaInteraccion = millis();
-   
-   // Avanzar al siguiente menú (0-6, saltamos el MENU_ALERTA)
-   menuActual++;
-   if (menuActual >= MENU_ALERTA) {
-     menuActual = MENU_INFO; // Volver al inicio
-   }
-   
-   // Feedback sonoro
-   tone(BUZZER, 800, 50);
-   
-   // Mostrar el menú actualizado
-   dibujarPantalla();
-   
-   Serial.print(F("Menu actual: "));
-   Serial.println(menuActual);
- }
- 
- // Ejecuta la acción correspondiente al menú actual (Botón 2)
- void ejecutarAccion() {
-   // Actualizar tiempo de interacción
-   ultimaInteraccion = millis();
-   
-   // Feedback sonoro
-   tone(BUZZER, 1200, 100);
-   
-   // Ejecutar según la sección actual
-   switch(menuActual) {
-     case MENU_INFO:
-       mostrarInformacion();
-       break;
-     case MENU_COMER:
-       darDeComer();
-       break;
-     case MENU_ACARICIAR:
-       acariciar();
-       break;
-     case MENU_LIMPIAR:
-       limpiar();
-       break;
-     case MENU_DISCIPLINAR:
-       disciplinar();
-       break;
-     case MENU_CURAR:
-       curar();
-       break;
-     case MENU_LUZ:
-       toggleLuz();
-       break;
-   }
-   
-   Serial.print(F("Accion ejecutada: "));
-   Serial.println(menuActual);
- }
- 
- // Cancela la acción actual y vuelve a la pantalla principal (Botón 3)
- void cancelarAccion() {
-   // Feedback sonoro diferente
-   tone(BUZZER, 600, 100);
-   
-   // Desactivar menú y volver a pantalla principal
-   menuActivo = false;
-   dibujarPantalla();
-   
-   Serial.println(F("Cancelado - Volviendo a pantalla principal"));
- }
- 
- // ========================================
- // FUNCIONES DE VISUALIZACIÓN
- // ========================================
- 
- // Muestra la información detallada de la mascota
- void mostrarInformacion() {
-   display.clearDisplay();
-   display.setTextSize(1);
-   display.setTextColor(SSD1306_WHITE);
-   display.setCursor(0, 0);
-   
-   display.print(F("Fase: "));
-   display.println(miMascota.fase);
-   display.print(F("Salud: "));
-   display.println(miMascota.salud);
-   display.print(F("Feliz: "));
-   display.println(miMascota.felicidad);
-   display.print(F("Hambre: "));
-   display.println(miMascota.saciado);
-   display.print(F("Limpio: "));
-   display.println(miMascota.limpieza);
-   display.print(F("Tiempo: "));
-   // Convertir milisegundos a horas y minutos
-   int horas = (tiempoTranscurrido / 3600000) % 24;
-   int minutos = (tiempoTranscurrido / 60000) % 60;
-   if (horas < 10){
-     display.print("0");
-   } 
-   display.print(horas);
-   display.print(":");
-   if (minutos < 10){
-     display.print("0");
-   } 
-   display.println(minutos);
-   display.display();
- }
- 
- // ========================================
- // FUNCIONES DE ACCIONES
- // ========================================
- 
- // Dar de comer: aumenta la saciedad en 1 (máximo 5)
- void darDeComer() {
-   if (miMascota.saciado < 5) {
-     miMascota.saciado++;
-     Serial.println(F("Dando de comer... Saciado +1"));
-     mostrarMensaje("Comiendo!");
-   } else {
-     Serial.println(F("La mascota ya esta llena!"));
-     mostrarMensaje("Lleno!");
-   }
-   //COMENTADO GUARDAR MASCOTA PARA NO DAñar EEPROM
-   //guardarMascota(); // Guardar inmediatamente después de acción
-   datosModificados = false; // Ya guardamos
-   delay(2000);
-   menuActivo = false;
-   dibujarPantalla();
- }
- 
- // Acariciar: aumenta la felicidad en 1 (máximo 5)
- void acariciar() {
-   if (miMascota.felicidad < 5) {
-     miMascota.felicidad++;
-     Serial.println(F("Acariciando... Felicidad +1"));
-     mostrarMensaje("Feliz!");
-   } else {
-     Serial.println(F("La mascota ya esta muy feliz!"));
-     mostrarMensaje("Muy feliz!");
-   }
-   //COMENTADO GUARDAR MASCOTA PARA NO DAñar EEPROM
-   //guardarMascota(); // Guardar inmediatamente después de acción
-   datosModificados = false; // Ya guardamos
-   delay(2000);
-   menuActivo = false;
-   dibujarPantalla();
- }
- 
- // Limpiar: aumenta la limpieza en 1 (máximo 5)
- void limpiar() {
-   if (miMascota.limpieza < 5) {
-     miMascota.limpieza++;
-     Serial.println(F("Limpiando... Limpieza +1"));
-     mostrarMensaje("Limpio!");
-   } else {
-     Serial.println(F("La mascota ya esta muy limpia!"));
-     mostrarMensaje("Muy limpio!");
-   }
-   //COMENTADO GUARDAR MASCOTA PARA NO DAñar EEPROM
-   //guardarMascota(); // Guardar inmediatamente después de acción
-   datosModificados = false; // Ya guardamos
-   delay(2000);
-   menuActivo = false;
-   dibujarPantalla();
- }
- 
- // Disciplinar: aumenta la educación en 1 (máximo 5)
- void disciplinar() {
-   if (miMascota.educacion < 5) {
-     miMascota.educacion++;
-     Serial.println(F("Disciplinando... Educacion +1"));
-     mostrarMensaje("Educado!");
-   } else {
-     Serial.println(F("La mascota ya esta bien educada!"));
-     mostrarMensaje("Bien educado!");
-   }
-   //COMENTADO GUARDAR MASCOTA PARA NO DAñar EEPROM
-   //guardarMascota(); // Guardar inmediatamente después de acción
-   datosModificados = false; // Ya guardamos
-   delay(2000);
-   menuActivo = false;
-   dibujarPantalla();
- }
- 
- // Curar: disminuye la enfermedad en 1 (mínimo 0)
- void curar() {
-   if (miMascota.enfermedad > 0) {
-     miMascota.enfermedad--;
-     Serial.println(F("Curando... Enfermedad -1"));
-     mostrarMensaje("Curado!");
-   } else {
-     Serial.println(F("La mascota ya esta sana!"));
-     mostrarMensaje("Ya sano!");
-   }
-   //COMENTADO GUARDAR MASCOTA PARA NO DAñar EEPROM
-   //guardarMascota(); // Guardar inmediatamente después de acción
-   datosModificados = false; // Ya guardamos
-   delay(2000);
-   menuActivo = false;
-   dibujarPantalla();
- }
- 
- // Encender/Apagar luz: cambia el estado de despierto
- void toggleLuz() {
-   miMascota.despierto = !miMascota.despierto;
-   
-   if (miMascota.despierto) {
-     Serial.println(F("Luz encendida - Mascota despierta"));
-     mostrarMensaje("Despierto!");
-   } else {
-     Serial.println(F("Luz apagada - Mascota durmiendo"));
-     //mostrarMensaje("Durmiendo!");
-   }
-   //COMENTADO GUARDAR MASCOTA PARA NO DAñar EEPROM
-   //guardarMascota(); // Guardar inmediatamente después de acción
-   datosModificados = false; // Ya guardamos
-   delay(2000);
-   menuActivo = false;
-   if(miMascota.despierto){
-    display.ssd1306_command(SSD1306_DISPLAYON);
+// 'Bichonejo1', 128x32px
+const unsigned char epd_bitmap_Bichonejo1 [] PROGMEM = {
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x44, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54, 0x2a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x52, 0x4a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x51, 0x8a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x41, 0x82, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe1, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x18, 0x18, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x24, 0x24, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x3c, 0x3c, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x19, 0x98, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x85, 0xa1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x43, 0xc2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb8, 0x1d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x8f, 0xf1, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x80, 0x01, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x01, 0x80, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x46, 0x62, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x84, 0x21, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x86, 0x61, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x41, 0x82, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38, 0x1c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xd5, 0xab, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+// 'Bichonejo2', 128x32px
+const unsigned char epd_bitmap_Bichonejo2 [] PROGMEM = {
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x44, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54, 0x2a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x52, 0x4a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x51, 0x8a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x41, 0x82, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe1, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x18, 0x18, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x34, 0x34, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x3c, 0x3c, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x19, 0x98, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x85, 0xa1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x43, 0xc2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb8, 0x1d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x8f, 0xf1, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x80, 0x01, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x01, 0x80, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x46, 0x62, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x84, 0x21, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x86, 0x61, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x41, 0x82, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38, 0x1c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xd5, 0xab, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+// 'Bichonejo4', 128x32px
+const unsigned char epd_bitmap_Bichonejo4 [] PROGMEM = {
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xa0, 0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x10, 0x88, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x50, 0xa8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x49, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x46, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x06, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x86, 0x1c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x60, 0x62, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0xd0, 0xd1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0xf0, 0xf3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x16, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x0f, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xe0, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x3f, 0xc6, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x06, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x19, 0x88, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1a, 0x10, 0x85, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x19, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x06, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x80, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe0, 0x70, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x56, 0xac, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xff, 0xfc, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+// 'Bichonejo3', 128x32px
+const unsigned char epd_bitmap_Bichonejo3 [] PROGMEM = {
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x81, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x42, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x42, 0xa0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x24, 0xa0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x18, 0xa0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x18, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x18, 0x70, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x23, 0xc3, 0xc4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x80, 0x8c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x18, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x5a, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x3c, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x81, 0xd0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0xff, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38, 0x00, 0x1c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x18, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x44, 0x66, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x68, 0x42, 0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38, 0x66, 0x1c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x18, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x81, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0d, 0x5a, 0xb0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0f, 0xff, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+// Array of all bitmaps for convenience.
+const int epd_bitmap_BichonejoArray_LEN = 4;
+const unsigned char* epd_bitmap_BichonejoArray[4] = {
+  epd_bitmap_Bichonejo1,
+  epd_bitmap_Bichonejo2,
+  epd_bitmap_Bichonejo3,
+  epd_bitmap_Bichonejo4
+};
+
+// ========================================
+// SISTEMA DE MENÚ
+// ========================================
+enum SeccionMenu {
+  MENU_INFO = 0,        // Información de la mascota
+  MENU_COMER = 1,       // Dar de comer
+  MENU_ACARICIAR = 2,   // Acariciar (aumenta felicidad)
+  MENU_LIMPIAR = 3,     // Limpiar
+  MENU_DISCIPLINAR = 4, // Disciplinar (aumenta educación)
+  MENU_CURAR = 5,       // Curar enfermedad
+  MENU_LUZ = 6,         // Encender/apagar luz
+  MENU_ALERTA = 7       // Icono de alerta (no accesible directamente)
+};
+
+// Variable que indica la sección actual del menú
+int menuActual = MENU_INFO;
+
+// ========================================
+// FUNCIONES DE EEPROM
+// ========================================
+void guardarMascota() {
+  int dir = 2;
+  tiempoTranscurrido = tiempoAcumulado + (millis() - tiempoInicioSesion);
+  EEPROM.put(EEPROM_MAGIC_ADDR, EEPROM_MAGIC);
+  for (int i = 0; i < 10; i++) {
+    EEPROM.write(dir++, miMascota.fase[i]);
+  }
+  EEPROM.put(dir, miMascota.salud); dir += sizeof(miMascota.salud);
+  EEPROM.put(dir, miMascota.felicidad); dir += sizeof(miMascota.felicidad);
+  EEPROM.put(dir, miMascota.saciado); dir += sizeof(miMascota.saciado);
+  EEPROM.put(dir, miMascota.limpieza); dir += sizeof(miMascota.limpieza);
+  EEPROM.put(dir, miMascota.educacion); dir += sizeof(miMascota.educacion);
+  EEPROM.put(dir, miMascota.enfermedad); dir += sizeof(miMascota.enfermedad);
+  EEPROM.put(dir, miMascota.tiempoVivo); dir += sizeof(miMascota.tiempoVivo);
+  EEPROM.put(dir, miMascota.isDead); dir += sizeof(miMascota.isDead);
+  EEPROM.put(dir, miMascota.despierto); dir += sizeof(miMascota.despierto);
+  EEPROM.put(dir, lastComida); dir += sizeof(lastComida);
+  EEPROM.put(dir, lastLimpieza); dir += sizeof(lastLimpieza);
+  EEPROM.put(dir, lastMaldad); dir += sizeof(lastMaldad);
+  EEPROM.put(dir, lastAburrimiento); dir += sizeof(lastAburrimiento);
+  EEPROM.put(dir, lastEnfermedad); dir += sizeof(lastEnfermedad);
+  EEPROM.put(dir, tiempoActual); dir += sizeof(tiempoActual);
+  EEPROM.put(dir, tiempoTranscurrido); dir += sizeof(tiempoTranscurrido);
+  tiempoUltimoGuardado = millis();
+  EEPROM.put(dir, tiempoUltimoGuardado);
+  Serial.print(F("Mascota guardada - Tiempo total: "));
+  Serial.print(tiempoTranscurrido / 60000);
+  Serial.println(F(" minutos"));
+}
+
+bool cargarMascota() {
+  int dir = 2;
+  uint16_t magic;
+  EEPROM.get(EEPROM_MAGIC_ADDR, magic);
+  if (magic != EEPROM_MAGIC) {
+    Serial.println(F("No hay datos guardados en EEPROM, inicializando mascota"));
+    return false;
+  }
+  for (int i = 0; i < 10; i++) {
+    miMascota.fase[i] = EEPROM.read(dir++);
+  }
+  EEPROM.get(dir, miMascota.salud); dir += sizeof(miMascota.salud);
+  EEPROM.get(dir, miMascota.felicidad); dir += sizeof(miMascota.felicidad);
+  EEPROM.get(dir, miMascota.saciado); dir += sizeof(miMascota.saciado);
+  EEPROM.get(dir, miMascota.limpieza); dir += sizeof(miMascota.limpieza);
+  EEPROM.get(dir, miMascota.educacion); dir += sizeof(miMascota.educacion);
+  EEPROM.get(dir, miMascota.enfermedad); dir += sizeof(miMascota.enfermedad);
+  EEPROM.get(dir, miMascota.tiempoVivo); dir += sizeof(miMascota.tiempoVivo);
+  EEPROM.get(dir, miMascota.isDead); dir += sizeof(miMascota.isDead);
+  EEPROM.get(dir, miMascota.despierto); dir += sizeof(miMascota.despierto);
+  EEPROM.get(dir, lastComida); dir += sizeof(lastComida);
+  EEPROM.get(dir, lastLimpieza); dir += sizeof(lastLimpieza);
+  EEPROM.get(dir, lastMaldad); dir += sizeof(lastMaldad);
+  EEPROM.get(dir, lastAburrimiento); dir += sizeof(lastAburrimiento);
+  EEPROM.get(dir, lastEnfermedad); dir += sizeof(lastEnfermedad);
+  EEPROM.get(dir, tiempoActual); dir += sizeof(tiempoActual);
+  EEPROM.get(dir, tiempoTranscurrido); dir += sizeof(tiempoTranscurrido);
+  EEPROM.get(dir, tiempoUltimoGuardado); dir += sizeof(tiempoUltimoGuardado);
+  Serial.println(F("Mascota cargada desde EEPROM"));
+  return true;
+}
+
+// ========================================
+// FUNCIONES DE DIBUJADO
+// ========================================
+void dibujarPantalla(int animationFrame = 0) {
+  display.clearDisplay();
+  if(menuActual == 0) {
+    display.drawBitmap(0, 0, epd_bitmap_Lupa, 32, 16, SSD1306_WHITE);
+  } else if(menuActual == 1) {
+    display.drawBitmap(32, 0, epd_bitmap_Comer, 32, 16, SSD1306_WHITE);
+  } else if(menuActual == 2) {
+    display.drawBitmap(64, 0, epd_bitmap_Acariciar, 32, 16, SSD1306_WHITE);
+  } else if(menuActual == 3) {
+    display.drawBitmap(96, 0, epd_bitmap_Limpiar, 32, 16, SSD1306_WHITE);
+  } else if(menuActual == 4) {
+    display.drawBitmap(0, 48, epd_bitmap_Educar, 32, 16, SSD1306_WHITE);
+  } else if(menuActual == 5) {
+    display.drawBitmap(32, 48, epd_bitmap_Curar, 32, 16, SSD1306_WHITE);
+  } else if(menuActual == 6) {
+    display.drawBitmap(64, 48, epd_bitmap_Luz, 32, 16, SSD1306_WHITE);
+  }
+  display.drawBitmap(0, 18, epd_bitmap_BichonejoArray[animationFrame], 128, 32, SSD1306_WHITE);
+  display.display();
+}
+
+// ========================================
+// FUNCIONES DE INICIALIZACIÓN
+// ========================================
+void inicializarMascota() {
+  strcpy(miMascota.fase, "huevo");
+  miMascota.salud = 5;
+  miMascota.felicidad = 5;
+  miMascota.saciado = 5;
+  miMascota.limpieza = 5;
+  miMascota.educacion = 2;
+  miMascota.enfermedad = 0;
+  miMascota.tiempoVivo = 0;
+  miMascota.isDead = false;
+  miMascota.despierto = true;
+  Serial.println(F("Mascota inicializada:"));
+  Serial.println(F("  Fase: huevo"));
+  Serial.println(F("  Todos los valores en estado inicial"));
+}
+
+void setup() {
+  Serial.begin(9600);
+  delay(1000);
+  Serial.println(F("=== Topigochi Iniciando ==="));
+  pinMode(BOTON_1, INPUT_PULLUP);
+  pinMode(BOTON_2, INPUT_PULLUP);
+  pinMode(BOTON_3, INPUT_PULLUP);
+  pinMode(BUZZER, OUTPUT);
+  Serial.println(F("Escaneando dispositivos I2C..."));
+  Wire.begin();
+  byte error, address;
+  int nDevices = 0;
+  for(address = 1; address < 127; address++) {
+    Wire.beginTransmission(address);
+    error = Wire.endTransmission();
+    if (error == 0) {
+      Serial.print(F("Dispositivo I2C encontrado en 0x"));
+      if (address < 16) Serial.print("0");
+      Serial.println(address, HEX);
+      nDevices++;
+    }
+  }
+  if (nDevices == 0) {
+    Serial.println(F("No se encontraron dispositivos I2C!"));
+    Serial.println(F("Verifica las conexiones SDA y SCL"));
+  } else {
+    Serial.print(F("Total dispositivos encontrados: "));
+    Serial.println(nDevices);
+  }
+  Serial.println(F("Intentando inicializar display en 0x3C..."));
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("Fallo con 0x3C, intentando 0x3D..."));
+    if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) {
+      Serial.println(F("ERROR: No se pudo inicializar el display OLED"));
+      delay(2000);
+    } else {
+      Serial.println(F("Display inicializado exitosamente en 0x3D!"));
+    }
+  } else {
+    Serial.println(F("Display inicializado exitosamente en 0x3C!"));
+  }
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  display.println(F("Topigochi"));
+  display.println(F("Iniciando..."));
+  display.display();
+  delay(2000);
+  if (!cargarMascota()) {
+    inicializarMascota();
+    tiempoInicioSesion = millis();
+    tiempoAcumulado = 0;
+    tiempoTranscurrido = 0;
+    lastComida = millis();
+    lastLimpieza = millis();
+    lastMaldad = millis();
+    lastAburrimiento = millis();
+    lastEnfermedad = millis();
+    Serial.println(F("Nueva mascota creada"));
+  } else {
+    tiempoInicioSesion = millis();
+    tiempoAcumulado = tiempoTranscurrido;
+    Serial.print(F("Mascota cargada - Tiempo previo: "));
+    Serial.print(tiempoAcumulado / 60000);
+    Serial.println(F(" minutos"));
+  }
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println(F("Presiona un boton"));
+  display.display();
+  Serial.println(F("Sistema listo!"));
+}
+
+// Variables para sistema de guardado inteligente
+bool datosModificados = false;
+const unsigned long INTERVALO_GUARDADO_NORMAL = 300000;
+const unsigned long INTERVALO_GUARDADO_CRITICO = 60000;
+
+void loop() {
+  tiempoActual = millis();
+  tiempoTranscurrido = tiempoAcumulado + (tiempoActual - tiempoInicioSesion);
+  unsigned long tiempoDesdeUltimoGuardado = tiempoActual - tiempoUltimoGuardado;
+  if (datosModificados && tiempoDesdeUltimoGuardado > INTERVALO_GUARDADO_CRITICO) {
+    datosModificados = false;
+  } else if (tiempoDesdeUltimoGuardado > INTERVALO_GUARDADO_NORMAL) {
+  }
+  cheackearEventos();
+  if (menuActivo && (millis() - ultimaInteraccion > TIMEOUT_MENU)) {
+    menuActivo = false;
     dibujarPantalla();
-   }else{
+  }
+  if (digitalRead(BOTON_1) == LOW) {
+    delay(debounceDelay);
+    if (digitalRead(BOTON_1) == LOW) {
+      if(miMascota.despierto == false) {
+        toggleLuz();
+        tone(BUZZER, 400, 100);
+        while(digitalRead(BOTON_1) == LOW);
+        return;
+      } else {
+        navegarMenu();
+        while(digitalRead(BOTON_1) == LOW);
+      }
+    }
+  }
+  if (digitalRead(BOTON_2) == LOW) {
+    delay(debounceDelay);
+    if (digitalRead(BOTON_2) == LOW) {
+      if(miMascota.despierto == false) {
+        toggleLuz();
+        tone(BUZZER, 400, 100);
+        while(digitalRead(BOTON_1) == LOW);
+        return;
+      } else {
+        ejecutarAccion();
+        while(digitalRead(BOTON_2) == LOW);
+      }
+    }
+  }
+  if (digitalRead(BOTON_3) == LOW) {
+    delay(debounceDelay);
+    if (digitalRead(BOTON_3) == LOW) {
+      if(miMascota.despierto == false) {
+        toggleLuz();
+        tone(BUZZER, 400, 100);
+        while(digitalRead(BOTON_1) == LOW);
+        return;
+      } else {
+        cancelarAccion();
+        while(digitalRead(BOTON_3) == LOW);
+      }
+    }
+  }
+  isAnimationRunning = miMascota.despierto && !menuActivo;
+  if (isAnimationRunning && millis() - lastFrameTime > frameDelay) {
+    animationFrame = (animationFrame + 1) % epd_bitmap_BichonejoArray_LEN;
+    lastFrameTime = millis();
+  }
+  dibujarPantalla(animationFrame);
+}
+
+// ========================================
+// FUNCIONES DE EVENTOS
+// ========================================
+void cheackearEventos() {
+  if(miMascota.isDead == false) {
+    if (tiempoActual - lastComida >= intervaloComida) {
+      if (miMascota.saciado > 1) {
+        miMascota.saciado--;
+        lastComida = tiempoActual;
+        datosModificados = true;
+      } else {
+        miMascota.isDead = true;
+        datosModificados = true;
+      }
+    }
+    if (tiempoActual - lastLimpieza >= intervaloLimpieza) {
+      if (miMascota.limpieza > 1) {
+        miMascota.limpieza--;
+        lastLimpieza = tiempoActual;
+        datosModificados = true;
+      } else {
+        miMascota.isDead = true;
+        datosModificados = true;
+      }
+    }
+    if (tiempoActual - lastMaldad >= intervaloMaldad) {
+      if (miMascota.educacion > 1) {
+        miMascota.educacion--;
+        lastMaldad = tiempoActual;
+        datosModificados = true;
+      } else {
+        miMascota.isDead = true;
+        datosModificados = true;
+      }
+    }
+    if (tiempoActual - lastAburrimiento >= intervaloAburrimiento) {
+      if (miMascota.felicidad > 1) {
+        miMascota.felicidad--;
+        lastAburrimiento = tiempoActual;
+        datosModificados = true;
+      } else {
+        miMascota.isDead = true;
+        datosModificados = true;
+      }
+    }
+    if (tiempoActual - lastEnfermedad >= intervaloEnfermedad) {
+      if (miMascota.enfermedad < 5) {
+        miMascota.enfermedad++;
+        lastEnfermedad = tiempoActual;
+        datosModificados = true;
+      } else {
+        miMascota.isDead = true;
+        datosModificados = true;
+      }
+    }
+  } else {
+    mostrarMensaje("Tu mascota ha muerto");
+  }
+}
+
+// ========================================
+// FUNCIONES DEL SISTEMA DE MENÚ
+// ========================================
+void navegarMenu() {
+  menuActivo = true;
+  ultimaInteraccion = millis();
+  menuActual++;
+  if (menuActual >= MENU_ALERTA) {
+    menuActual = MENU_INFO;
+  }
+  tone(BUZZER, 800, 50);
+  dibujarPantalla();
+}
+
+void ejecutarAccion() {
+  ultimaInteraccion = millis();
+  tone(BUZZER, 1200, 100);
+  switch(menuActual) {
+    case MENU_INFO:
+      mostrarInformacion();
+      break;
+    case MENU_COMER:
+      darDeComer();
+      break;
+    case MENU_ACARICIAR:
+      acariciar();
+      break;
+    case MENU_LIMPIAR:
+      limpiar();
+      break;
+    case MENU_DISCIPLINAR:
+      disciplinar();
+      break;
+    case MENU_CURAR:
+      curar();
+      break;
+    case MENU_LUZ:
+      toggleLuz();
+      break;
+  }
+}
+
+void cancelarAccion() {
+  tone(BUZZER, 600, 100);
+  menuActivo = false;
+}
+
+// ========================================
+// FUNCIONES DE VISUALIZACIÓN
+// ========================================
+void mostrarInformacion() {
+  isAnimationRunning = false;
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  display.print(F("Fase: "));
+  display.println(miMascota.fase);
+  display.print(F("Salud: "));
+  display.println(miMascota.salud);
+  display.print(F("Feliz: "));
+  display.println(miMascota.felicidad);
+  display.print(F("Hambre: "));
+  display.println(miMascota.saciado);
+  display.print(F("Limpio: "));
+  display.println(miMascota.limpieza);
+  display.print(F("Tiempo: "));
+  int horas = (tiempoTranscurrido / 3600000) % 24;
+  int minutos = (tiempoTranscurrido / 60000) % 60;
+  if (horas < 10) display.print("0");
+  display.print(horas);
+  display.print(":");
+  if (minutos < 10) display.print("0");
+  display.println(minutos);
+  display.display();
+}
+
+void darDeComer() {
+  if (miMascota.saciado < 5) {
+    miMascota.saciado++;
+    mostrarMensaje("Comiendo!");
+  } else {
+    mostrarMensaje("Lleno!");
+  }
+  menuActivo = false;
+}
+
+void acariciar() {
+  if (miMascota.felicidad < 5) {
+    miMascota.felicidad++;
+    mostrarMensaje("Feliz!");
+  } else {
+    mostrarMensaje("Muy feliz!");
+  }
+  menuActivo = false;
+}
+
+void limpiar() {
+  if (miMascota.limpieza < 5) {
+    miMascota.limpieza++;
+    mostrarMensaje("Limpio!");
+  } else {
+    mostrarMensaje("Muy limpio!");
+  }
+  menuActivo = false;
+}
+
+void disciplinar() {
+  if (miMascota.educacion < 5) {
+    miMascota.educacion++;
+    mostrarMensaje("Educado!");
+  } else {
+    mostrarMensaje("Bien educado!");
+  }
+  menuActivo = false;
+}
+
+void curar() {
+  if (miMascota.enfermedad > 0) {
+    miMascota.enfermedad--;
+    mostrarMensaje("Curado!");
+  } else {
+    mostrarMensaje("Ya sano!");
+  }
+  menuActivo = false;
+}
+
+void toggleLuz() {
+  miMascota.despierto = !miMascota.despierto;
+  if (miMascota.despierto) {
+    delay(3000);
+    display.ssd1306_command(SSD1306_DISPLAYON);
+    mostrarMensaje("Despierto!");
+  } else {
     display.clearDisplay();
     display.ssd1306_command(SSD1306_DISPLAYOFF);
-   }
- }
- 
+  }
+  menuActivo = false;
+}
 
- // ========================================
- // FUNCIONES DE UTILIDAD
- // ========================================
- void mostrarMensaje(const char* mensaje) {
-   // Limpiar display
-   display.clearDisplay();
-   
-   // Configurar texto
-   display.setTextSize(2);
-   display.setTextColor(SSD1306_WHITE);
-   display.setCursor(10, 25);
-   
-   // Mostrar mensaje
-   display.println(mensaje);
-   display.display();
-   
-   // Feedback de audio (opcional)
-   tone(BUZZER, 1000, 100); // Tono de 1000Hz por 100ms
-   
-   // Mostrar en serial para debug
-   Serial.println(mensaje);
- }
-
- void dibujarPantalla() {
-   display.clearDisplay();
-   if(menuActual==0){
-      display.drawBitmap(0, 0, epd_bitmap_Lupa, 32, 16, SSD1306_WHITE);
-   }else if(menuActual==1){
-     display.drawBitmap(32, 0, epd_bitmap_Comer, 32, 16, SSD1306_WHITE);
-   }else if(menuActual==2){
-     display.drawBitmap(64, 0, epd_bitmap_Acariciar, 32, 16, SSD1306_WHITE);
-   }else if(menuActual==3){
-     display.drawBitmap(96, 0, epd_bitmap_Limpiar, 32, 16, SSD1306_WHITE);
-   }else if(menuActual==4){
-     display.drawBitmap(0, 48, epd_bitmap_Educar, 32, 16, SSD1306_WHITE);
-   }else if(menuActual==5){
-     display.drawBitmap(32, 48, epd_bitmap_Curar, 32, 16, SSD1306_WHITE);
-   }else if(menuActual==6){
-     display.drawBitmap(64, 48, epd_bitmap_Luz, 32, 16, SSD1306_WHITE);
-   }
-
-   //if(alarma){
-   // display.drawBitmap(96, 48, epd_bitmap_Alarma, 32, 16, SSD1306_WHITE);
-   //}
-   display.drawBitmap(56, 18, epd_bitmap_Alien1, 32, 16, SSD1306_WHITE);
-   
-   display.display();
- }
+// ========================================
+// FUNCIONES DE UTILIDAD
+// ========================================
+void mostrarMensaje(const char* mensaje) {
+  display.clearDisplay();
+  display.setTextSize(2);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(10, 25);
+  display.println(mensaje);
+  display.display();
+  tone(BUZZER, 1000, 100);
+  Serial.println(mensaje);
+}
