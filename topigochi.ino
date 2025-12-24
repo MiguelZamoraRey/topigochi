@@ -373,8 +373,16 @@
    if (digitalRead(BOTON_1) == LOW) {
      delay(debounceDelay); // Anti-rebote
      if (digitalRead(BOTON_1) == LOW) {
-       navegarMenu();
-       while(digitalRead(BOTON_1) == LOW); // Esperar a que se suelte
+      if(miMascota.despierto==false){
+        // Si la mascota está durmiendo, no permitir menú
+        toggleLuz(); // Encender luz y despertar
+        tone(BUZZER, 400, 100); // Tono de error
+        while(digitalRead(BOTON_1) == LOW); // Esperar a que se suelte
+        return;
+      }else{
+        navegarMenu();
+        while(digitalRead(BOTON_1) == LOW); // Esperar a que se suelte
+      }
      }
    }
    
@@ -382,8 +390,16 @@
    if (digitalRead(BOTON_2) == LOW) {
      delay(debounceDelay);
      if (digitalRead(BOTON_2) == LOW) {
+      if(miMascota.despierto==false){
+        // Si la mascota está durmiendo, no permitir menú
+        toggleLuz(); // Encender luz y despertar
+        tone(BUZZER, 400, 100); // Tono de error
+        while(digitalRead(BOTON_1) == LOW); // Esperar a que se suelte
+        return;
+      }else{
        ejecutarAccion();
        while(digitalRead(BOTON_2) == LOW);
+      }
      }
    }
    
@@ -391,8 +407,16 @@
    if (digitalRead(BOTON_3) == LOW) {
      delay(debounceDelay);
      if (digitalRead(BOTON_3) == LOW) {
+      if(miMascota.despierto==false){
+        // Si la mascota está durmiendo, no permitir menú
+        toggleLuz(); // Encender luz y despertar
+        tone(BUZZER, 400, 100); // Tono de error
+        while(digitalRead(BOTON_1) == LOW); // Esperar a que se suelte
+        return;
+      }else{
        cancelarAccion();
        while(digitalRead(BOTON_3) == LOW);
+      }
      }
    }
  }
@@ -754,14 +778,19 @@
      mostrarMensaje("Despierto!");
    } else {
      Serial.println(F("Luz apagada - Mascota durmiendo"));
-     mostrarMensaje("Durmiendo!");
+     //mostrarMensaje("Durmiendo!");
    }
    //COMENTADO GUARDAR MASCOTA PARA NO DAñar EEPROM
    //guardarMascota(); // Guardar inmediatamente después de acción
    datosModificados = false; // Ya guardamos
    delay(2000);
    menuActivo = false;
-   mostrarPantallaPrincipal();
+   if(miMascota.despierto){
+    mostrarPantallaPrincipal();
+   }else{
+    display.clearDisplay();
+    display.sleep()
+   }
  }
  
  void mostrarMensaje(const char* mensaje) {
