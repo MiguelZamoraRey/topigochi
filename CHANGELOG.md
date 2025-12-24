@@ -5,24 +5,32 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+
+## [0.3.0] - 2025-12-24
+
+### ✨ Añadido
+- Animación del bichejo/mascota en pantalla según estado.
+- Iconos visuales para cada sección del menú (navegación con iconos).
+- Estados de la mascota: dormido, despierto, muerto.
+- Guardado persistente de datos en EEPROM (con protección para evitar fallos).
+- Eventos de comida y condición de muerte.
+- Cálculo de tiempo de vida y degradación automática de atributos (hambre, limpieza, felicidad).
+- Textos y mensajes adicionales en el menú y acciones.
+- Navegación mejorada en el menú con feedback visual.
+
+### 🐛 Corregido
+- Mejoras de estabilidad y protección contra crashes al guardar en EEPROM.
+- Correcciones menores en la navegación y visualización de atributos.
+
+### 🔄 Cambiado
+- Refactorización de la estructura de menús y eventos.
+- Mejoras en la visualización y feedback de acciones.
+
+---
 ## [Unreleased]
 
 ### Planeado
-- Iconos visuales para cada sección del menú (8 iconos: 4 arriba, 4 abajo)
-- Animaciones de la mascota según su estado emocional
-- Sistema de degradación automática (hambre, limpieza, felicidad bajan con el tiempo)
-- Evolución de fases (huevo → bebé → adulto → adulto especial)
-- Cálculo dinámico de salud basado en otros atributos
-- Sistema de alerta automática (sección 8) que detecta necesidades críticas
-- Minijuegos interactivos para aumentar felicidad
-- Efectos visuales al ejecutar acciones
-- Melodías y efectos de sonido variados según la acción
-- Sistema de muerte y reinicio de partida
-- Guardado persistente de datos en EEPROM
-- Múltiples tipos de comida con diferentes efectos
-- Sistema de logros o achievements
-
----
+...existing code...
 
 ## [0.2.0] - 2024-12-21
 

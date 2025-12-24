@@ -1,7 +1,7 @@
 # Topigochi - Proyecto Arduino UNO R4
 
 ## 📋 Descripción
-Proyecto de mascota virtual (Topigochi) estilo Tamagotchi controlada por Arduino UNO R4, con pantalla OLED, botones de interacción y feedback sonoro mediante buzzer. Cuida a tu mascota virtual alimentándola, jugando con ella, limpiándola y manteniéndola sana y feliz.
+Topigochi es una mascota virtual estilo Tamagotchi para Arduino UNO R4, con pantalla OLED, botones de interacción y feedback sonoro mediante buzzer. Permite alimentar, jugar, limpiar y cuidar la salud y felicidad de tu mascota. Incluye animaciones, iconos de menú, estados avanzados y guardado persistente.
 
 ## 🔧 Hardware Necesario
 
@@ -256,32 +256,40 @@ Para debugging, abre el monitor serial (`Herramientas > Monitor Serie`) a 9600 b
 ## 📝 Funcionalidades Actuales
 
 - ✅ Sistema de mascota virtual con 10 atributos
-- ✅ Menú interactivo de 8 secciones navegable
+- ✅ Menú interactivo de 8 secciones navegable con iconos visuales
+- ✅ Animaciones del bichejo/mascota según su estado (feliz, dormido, muerto, etc.)
+- ✅ Estados avanzados: dormido, despierto, muerto
+- ✅ Guardado persistente de datos en EEPROM (con protección anti-crash)
+- ✅ Eventos de comida, limpieza, juego, enfermedad y muerte
+- ✅ Degradación automática de atributos (hambre, limpieza, felicidad bajan con el tiempo)
 - ✅ 3 botones con funciones diferenciadas (navegar, acción, cancelar)
 - ✅ 6 acciones para cuidar la mascota
 - ✅ Sistema de información de estado
 - ✅ Control de luz (dormir/despertar)
-- ✅ Feedback sonoro diferenciado por acción
+- ✅ Feedback visual y sonoro en acciones y navegación
 - ✅ Detección de pulsación de botones
 - ✅ Visualización de mensajes en display OLED
 - ✅ Anti-rebote (debounce) en botones
 - ✅ Comunicación serial para debugging
 - ✅ Límites en los atributos (evita valores fuera de rango)
 
+## 🆕 Novedades recientes
+
+- Iconos visuales para cada sección del menú
+- Animaciones avanzadas de la mascota
+- Estados: dormido, despierto, muerto
+- Guardado seguro en EEPROM
+- Eventos de comida y condición de muerte
+- Mejoras en la navegación y feedback visual
+
 ## 🔮 Futuras Funcionalidades
 
-- [ ] Iconos visuales para cada sección del menú
-- [ ] Animaciones de la mascota según su estado
-- [ ] Sistema de degradación automática (hambre, limpieza, felicidad bajan con el tiempo)
 - [ ] Evolución de fases (huevo → bebé → adulto)
 - [ ] Cálculo dinámico de salud según otros atributos
 - [ ] Sistema de alerta (sección 8) que detecta necesidades
 - [ ] Minijuegos para aumentar felicidad
 - [ ] Efectos visuales al ejecutar acciones
 - [ ] Diferentes tonos/melodías según la acción
-- [ ] Sistema de muerte y reinicio
-- [ ] Guardado de estado en EEPROM
-- [ ] Múltiples tipos de comida
 - [ ] Sistema de recompensas
 
 ## 🛠️ Solución de Problemas
