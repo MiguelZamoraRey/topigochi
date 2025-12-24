@@ -699,5 +699,5 @@ void mostrarMensaje(const char* mensaje) {
   tone(BUZZER, 1000, 100);
   delay(2000);
   mostrandoMensaje = true;
-  mensajeMostradoHasta = millis() + 2000; // 2 segundos
+  mensajeMostradoHasta = millis() + 500; // 2 segundos
 }
