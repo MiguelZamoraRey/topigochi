@@ -1,12 +1,12 @@
-# Topigochi - Proyecto Arduino UNO R4
+# Topigochi - Proyecto Arduino UNO NANO o mayor potencia
 
 ## 📋 Descripción
-Topigochi es una mascota virtual estilo Tamagotchi para Arduino UNO R4, con pantalla OLED, botones de interacción y feedback sonoro mediante buzzer. Permite alimentar, jugar, limpiar y cuidar la salud y felicidad de tu mascota. Incluye animaciones, iconos de menú, estados avanzados y guardado persistente.
+Topigochi es una mascota virtual estilo Tamagotchi para Arduino NANO o mayor potencia, con pantalla OLED, botones de interacción y feedback sonoro mediante buzzer. Permite alimentar, jugar, limpiar y cuidar la salud y felicidad de tu mascota. Incluye animaciones, iconos de menú, estados avanzados y guardado persistente.
 
 ## 🔧 Hardware Necesario
 
 ### Componentes
-- **Arduino UNO R4** (1x)
+- **Arduino UNO Nano o mayor potencia** (1x)
 - **Display OLED 0.96"** I2C SSD1306 (1x)
 - **Buzzer Pasivo** (1x)
 - **Botones Pulsadores** (3x)
@@ -188,7 +188,7 @@ BOTON_3 D4 ──┤ D4              D10   ├─────
    - Para comunicación I2C
 
 ### Configuración del Arduino IDE
-1. Seleccionar placa: `Herramientas > Placa > Arduino UNO R4`
+1. Seleccionar placa: `Herramientas > Placa > Arduino UNO Nano`
 2. Seleccionar puerto: `Herramientas > Puerto > [Tu puerto USB]`
 3. Velocidad de baudios: `9600` (para monitor serial)
 
@@ -199,7 +199,7 @@ BOTON_3 D4 ──┤ D4              D10   ├─────
 2. Abrir el archivo `topigochiv1.ino` en Arduino IDE
 3. Instalar las librerías necesarias (ver sección anterior)
 4. Realizar las conexiones según el diagrama de pines
-5. Conectar el Arduino UNO R4 al computador
+5. Conectar el Arduino UNO Nano al computador
 6. Verificar y subir el código al Arduino
 
 ### Uso
@@ -325,7 +325,7 @@ Miguel Zamora - Diciembre 2025
 
 ## 📚 Referencias
 
-- [Arduino UNO R4 Documentation](https://docs.arduino.cc/hardware/uno-r4-minima/)
+- [Arduino UNO Nano Documentation](https://docs.arduino.cc/hardware/uno-r4-minima/)
 - [Adafruit SSD1306 Library](https://github.com/adafruit/Adafruit_SSD1306)
 - [Adafruit GFX Library](https://github.com/adafruit/Adafruit-GFX-Library)
 - [I2C Communication Protocol](https://learn.sparkfun.com/tutorials/i2c)
