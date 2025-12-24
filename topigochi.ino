@@ -60,6 +60,9 @@ bool isAnimationRunning = false;
 int animationFrame = 0;
 unsigned long lastFrameTime = 0;
 const unsigned long frameDelay = 300; // 300ms entre frames
+unsigned long mensajeMostradoHasta = 0;  // Tiempo hasta el que se muestra el mensaje
+bool mostrandoMensaje = false;         // Si estamos mostrando un mensaje
+
 
 // Marca de validación para EEPROM
 #define EEPROM_MAGIC 0xABCD
@@ -386,6 +389,7 @@ bool cargarMascota() {
 // FUNCIONES DE DIBUJADO
 // ========================================
 void dibujarPantalla(int animationFrame = 0) {
+   if (mostrandoMensaje) return;
   display.clearDisplay();
   if(menuActual == 0) {
     display.drawBitmap(0, 0, epd_bitmap_Lupa, 32, 16, SSD1306_WHITE);
@@ -517,6 +521,14 @@ void loop() {
     menuActivo = false;
     dibujarPantalla();
   }
+
+  // Manejar temporizador de mensajes
+  if (mostrandoMensaje && millis() >= mensajeMostradoHasta) {
+    mostrandoMensaje = false;
+    isAnimationRunning = miMascota.despierto && !menuActivo;
+  }
+
+
   if (digitalRead(BOTON_1) == LOW) {
     delay(debounceDelay);
     if (digitalRead(BOTON_1) == LOW) {
@@ -711,7 +723,6 @@ void darDeComer() {
   } else {
     mostrarMensaje("Lleno!");
   }
-  menuActivo = false;
 }
 
 void acariciar() {
@@ -721,7 +732,6 @@ void acariciar() {
   } else {
     mostrarMensaje("Muy feliz!");
   }
-  menuActivo = false;
 }
 
 void limpiar() {
@@ -731,7 +741,6 @@ void limpiar() {
   } else {
     mostrarMensaje("Muy limpio!");
   }
-  menuActivo = false;
 }
 
 void disciplinar() {
@@ -741,7 +750,6 @@ void disciplinar() {
   } else {
     mostrarMensaje("Bien educado!");
   }
-  menuActivo = false;
 }
 
 void curar() {
@@ -751,7 +759,6 @@ void curar() {
   } else {
     mostrarMensaje("Ya sano!");
   }
-  menuActivo = false;
 }
 
 void toggleLuz() {
@@ -764,7 +771,6 @@ void toggleLuz() {
     display.clearDisplay();
     display.ssd1306_command(SSD1306_DISPLAYOFF);
   }
-  menuActivo = false;
 }
 
 // ========================================
@@ -779,4 +785,6 @@ void mostrarMensaje(const char* mensaje) {
   display.display();
   tone(BUZZER, 1000, 100);
   Serial.println(mensaje);
+  mostrandoMensaje = true;
+  mensajeMostradoHasta = millis() + 2000; // Mostrar por 2 segundos
 }
