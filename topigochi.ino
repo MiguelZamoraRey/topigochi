@@ -786,10 +786,11 @@
    delay(2000);
    menuActivo = false;
    if(miMascota.despierto){
+    display.ssd1306_command(SSD1306_DISPLAYON);
     mostrarPantallaPrincipal();
    }else{
     display.clearDisplay();
-    display.sleep()
+    display.ssd1306_command(SSD1306_DISPLAYOFF);
    }
  }
  
