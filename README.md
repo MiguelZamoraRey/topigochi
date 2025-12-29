@@ -275,21 +275,22 @@ Para debugging, abre el monitor serial (`Herramientas > Monitor Serie`) a 9600 b
 
 ## 🆕 Novedades recientes
 
-- Iconos visuales para cada sección del menú
-- Animaciones avanzadas de la mascota
-- Estados: dormido, despierto, muerto
-- Guardado seguro en EEPROM
-- Eventos de comida y condición de muerte
+- Navegación con iconos visuales para cada sección del menú
+- Degradación automática de atributos (hambre, limpieza, felicidad bajan con el tiempo)
+- Animaciones dinámicas y bitmaps para las fases huevo y adulto
+- Estructura lista para animaciones diferentes por fase (arrays por fase en dibujarPantalla)
+- Eliminada la funcionalidad de "educar" (botón, variable, lógica y visualización)
+- Limpieza de variables y código innecesario
+- Optimización de memoria RAM y robustez frente a errores OLED
 - Mejoras en la navegación y feedback visual
 
 ## 🔮 Futuras Funcionalidades
 
-- [ ] Evolución de fases (huevo → bebé → adulto)
+- [ ] Añadir/definir bitmaps y animaciones para las fases bebé y anciano
+- [ ] Implementar el sistema de alerta (sección 8) para necesidades críticas
+- [ ] Añadir minijuegos y efectos visuales/sonoros avanzados
+- [ ] Mejorar el resaltado visual del icono seleccionado y feedback visual/sonoro
 - [ ] Cálculo dinámico de salud según otros atributos
-- [ ] Sistema de alerta (sección 8) que detecta necesidades
-- [ ] Minijuegos para aumentar felicidad
-- [ ] Efectos visuales al ejecutar acciones
-- [ ] Diferentes tonos/melodías según la acción
 - [ ] Sistema de recompensas
 
 ## 🛠️ Solución de Problemas

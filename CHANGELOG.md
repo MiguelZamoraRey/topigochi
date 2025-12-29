@@ -283,3 +283,26 @@ Para sugerir cambios o reportar bugs, por favor documenta:
 ---
 
 **Última actualización**: 21 de diciembre de 2024
+### ✨ Añadido
+- Navegación con iconos visuales para cada sección del menú.
+- Degradación automática de atributos (hambre, limpieza, felicidad bajan con el tiempo).
+- Animaciones dinámicas y bitmaps para las fases huevo y adulto.
+- Estructura lista para animaciones diferentes por fase (arrays por fase en dibujarPantalla).
+
+### 🔧 Cambiado
+- Eliminada toda la funcionalidad de "educar" (botón, variable, lógica y visualización) para optimizar memoria y simplificar el código.
+- Limpieza de variables y funciones no utilizadas.
+- Optimización del uso de memoria RAM en pantalla y gráficos.
+
+### 🐛 Corregido
+- Solucionado bug de error OLED relacionado con uso de memoria y textos.
+- Mejorada la robustez del sistema tras eliminar funciones innecesarias.
+
+### 📝 Documentación
+- README y comentarios del código actualizados para reflejar la nueva estructura de animaciones, navegación y degradación automática.
+
+### 🚧 Pendiente / Próximos pasos
+- Añadir/definir bitmaps y animaciones para las fases bebé y anciano.
+- Implementar el sistema de alerta (sección 8) para necesidades críticas.
+- Añadir minijuegos y efectos visuales/sonoros avanzados.
+- Mejorar el resaltado visual del icono seleccionado y feedback visual/sonoro.
