@@ -730,7 +730,7 @@ void ejecutarAccion() {
   ultimaInteraccion = millis();
   tone(BUZZER, 1200, 100);
   if(miMascota.isDead && menuActual != MENU_CURAR) {
-    mostrarMensaje("Muerto!, Cura para empezar");
+    mostrarMensaje("Muerto!");
     return;
   }else{
     switch(menuActual) {
