@@ -461,6 +461,12 @@ void dibujarPantalla(int animationFrame = 0) {
     else if(menuActual == 6) display.drawBitmap(64, 48, epd_bitmap_Luz, 32, 16, SSD1306_WHITE);
   }
 
+  // Si la mascota está muerta, mostrar imagen de muerte y salir
+  if (miMascota.isDead) {
+    display.drawBitmap(0, 18, epd_bitmap_Died, 128, 32, SSD1306_WHITE);
+    display.display();
+    return;
+  }
   // SIEMPRE dibujar el sprite de la mascota si está despierta
   if (miMascota.despierto) {
     if(strcmp(miMascota.fase, "huevo") == 0){
@@ -707,8 +713,6 @@ void cheackearEventos() {
     }
     // Sumar tiempo vivo
     miMascota.tiempoVivo += millis() - tiempoActual;
-  } else {
-    mostrarMensaje("Tu mascota ha muerto");
   }
 }
 
@@ -725,14 +729,19 @@ void navegarMenu() {
 void ejecutarAccion() {
   ultimaInteraccion = millis();
   tone(BUZZER, 1200, 100);
-  switch(menuActual) {
-    case MENU_INFO: mostrarInformacion(); break;
-    case MENU_COMER: darDeComer(); break;
-    case MENU_ACARICIAR: acariciar(); break;
-    case MENU_LIMPIAR: limpiar(); break;
-    case MENU_DISCIPLINAR: disciplinar(); break;
-    case MENU_CURAR: curar(); break;
-    case MENU_LUZ: toggleLuz(); break;
+  if(miMascota.isDead && menuActual != MENU_CURAR) {
+    mostrarMensaje("Muerto!, Cura para empezar");
+    return;
+  }else{
+    switch(menuActual) {
+      case MENU_INFO: mostrarInformacion(); break;
+      case MENU_COMER: darDeComer(); break;
+      case MENU_ACARICIAR: acariciar(); break;
+      case MENU_LIMPIAR: limpiar(); break;
+      case MENU_DISCIPLINAR: disciplinar(); break;
+      case MENU_CURAR: curar(); break;
+      case MENU_LUZ: toggleLuz(); break;
+    }
   }
 }
 
@@ -799,6 +808,10 @@ void disciplinar() {
 }
 
 void curar() {
+  if (miMascota.isDead) {
+    inicializarMascota();
+    return;
+  }
   if (miMascota.enfermedad > 0) {
     miMascota.enfermedad--;
     mostrarMensaje("Curado!");
