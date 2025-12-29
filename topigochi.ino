@@ -601,7 +601,7 @@ void cheackearEventos() {
     Serial.println(miMascota.fase);
   if(!miMascota.isDead) {
     // Evolución de fase automática y actualización de intervalos
-    if (faseActual == 0 && miMascota.tiempoVivo >= 6000) { // huevo -> bebe
+    if (faseActual == 0 && miMascota.tiempoVivo >= 60000) { // huevo -> bebe (10 min)
       faseActual = 1;
       strcpy(miMascota.fase, "bebe");
       tiempoTransicionFase = 86400000; // bebe -> adulto (24h)
