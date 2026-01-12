@@ -568,11 +568,11 @@ void dibujarPantalla(int animationFrame = 0) {
 // ========================================
 void inicializarMascota() {
   strcpy(miMascota.fase, "huevo");
-  miMascota.salud = 5;
-  miMascota.felicidad = 5;
-  miMascota.saciado = 5;
-  miMascota.limpieza = 5;
-  miMascota.educacion = 2;
+  miMascota.salud = 10;
+  miMascota.felicidad = 10;
+  miMascota.saciado = 10;
+  miMascota.limpieza = 10;
+  miMascota.educacion = 4;
   miMascota.enfermedad = 0;
   miMascota.tiempoVivo = 0;
   miMascota.isDead = false;
@@ -719,11 +719,11 @@ void loop() {
 // FUNCIONES DE EVENTOS
 // ========================================
 void cheackearEventos() {
-      // Alarma eficiente: solo cuando cruza de >=4 a <4
+      // Alarma eficiente: solo cuando cruza de >=8 a <8
       uint8_t nuevoEstado = 0;
-      if (miMascota.saciado < 4) nuevoEstado |= 1;
-      if (miMascota.felicidad < 4) nuevoEstado |= 2;
-      if (miMascota.limpieza < 4) nuevoEstado |= 4;
+      if (miMascota.saciado < 10) nuevoEstado |= 1;
+      if (miMascota.felicidad < 10) nuevoEstado |= 2;
+      if (miMascota.limpieza < 10) nuevoEstado |= 4;
       // Si algún bit cambia de 0 a 1, suena alarma
       if ((nuevoEstado & ~estadoAlarma) != 0) {
         // Llamada de la mascota: secuencia de tonos
@@ -752,6 +752,8 @@ void cheackearEventos() {
       intervaloMaldad = 86400000;
       intervaloAburrimiento = 7200000;
       intervaloEnfermedad = 86400000;
+      tiempoAcumulado = 0;  // RESET: resetear tiempo acumulado
+      tiempoInicioSesion = tiempoActual;  // RESET: nuevo punto de inicio
       miMascota.tiempoVivo = 0;
       mostrarMensaje("¡Evoluciono!");
       // Melodía de celebración
@@ -771,6 +773,8 @@ void cheackearEventos() {
       intervaloMaldad = 86400000;
       intervaloAburrimiento = 14400000;
       intervaloEnfermedad = 86400000;
+      tiempoAcumulado = 0;  // RESET
+      tiempoInicioSesion = tiempoActual;  // RESET
       miMascota.tiempoVivo = 0;
       mostrarMensaje("¡Evoluciono!");
     } else if (faseActual == 2 && miMascota.tiempoVivo >= 259200000) { // adulto -> anciano
@@ -782,6 +786,8 @@ void cheackearEventos() {
       intervaloMaldad = 86400000;
       intervaloAburrimiento = 10800000;
       intervaloEnfermedad = 86400000;
+      tiempoAcumulado = 0;  // RESET
+      tiempoInicioSesion = tiempoActual;  // RESET
       miMascota.tiempoVivo = 0;
       mostrarMensaje("¡Evoluciono!");
     }
@@ -872,7 +878,7 @@ void mostrarInformacion() {
 }
 
 void darDeComer() {
-  if (miMascota.saciado < 5) {
+  if (miMascota.saciado < 10) {
     miMascota.saciado++;
     mostrarMensaje("Comiendo!");
   } else {
@@ -881,7 +887,7 @@ void darDeComer() {
 }
 
 void acariciar() {
-  if (miMascota.felicidad < 5) {
+  if (miMascota.felicidad < 10) {
     miMascota.felicidad++;
     mostrarMensaje("Feliz!");
   } else {
@@ -890,7 +896,7 @@ void acariciar() {
 }
 
 void limpiar() {
-  if (miMascota.limpieza < 5) {
+  if (miMascota.limpieza < 10) {
     miMascota.limpieza++;
     mostrarMensaje("Limpio!");
   } else {
@@ -899,7 +905,7 @@ void limpiar() {
 }
 
 void disciplinar() {
-  if (miMascota.educacion < 5) {
+  if (miMascota.educacion < 10) {
     miMascota.educacion++;
     mostrarMensaje("Educado!");
   } else {
@@ -915,7 +921,7 @@ void curar() {
   if (miMascota.enfermedad > 0) {
     miMascota.enfermedad--;
     mostrarMensaje("Curado!");
-  } else {
+  } else if (miMascota.enfermedad < 10) {
     mostrarMensaje("Ya sano!");
   }
 }
