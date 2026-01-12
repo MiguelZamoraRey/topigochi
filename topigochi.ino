@@ -1,5 +1,3 @@
-// Estado previo para alarma eficiente en RAM
-uint8_t estadoAlarma = 0; // bits: 0=saciado, 1=felicidad, 2=limpieza
 /*
  * Topigochi - Arduino UNO R4
  * Control de pantalla OLED 0.96" con 3 botones
@@ -8,13 +6,18 @@ uint8_t estadoAlarma = 0; // bits: 0=saciado, 1=felicidad, 2=limpieza
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include <EEPROM.h>
 
 // Configuración del display OLED
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+// Estado previo para alarma eficiente en RAM
+uint8_t estadoAlarma = 0; // bits: 0=saciado, 1=felicidad, 2=limpieza
+
+// Flag para saber si el display está funcional
+boolean displayOK = false;
 
 // Pines de los botones
 #define BOTON_1 2  // Moverse por el menú
@@ -26,7 +29,6 @@ unsigned long tiempoInicioSesion = 0;
 unsigned long tiempoAcumulado = 0;
 unsigned long tiempoActual = 0;
 unsigned long tiempoTranscurrido = 0;
-unsigned long tiempoUltimoGuardado = 0;
 
 // Intervalos de tiempo para eventos
 // Variables para fases y evolución
@@ -41,12 +43,12 @@ unsigned long intervaloEnfermedad = 86400000;
 // Variación en los eventos
 const unsigned long variacionMaxima = 1800000; //30 minutos
 
-// Última vez de la acción
-unsigned long lastComida = 0;
-unsigned long lastLimpieza = 0;
-unsigned long lastMaldad = 0;
-unsigned long lastAburrimiento = 0;
-unsigned long lastEnfermedad = 0;
+// Próximo evento para cada stat (calculado aleatoriamente)
+unsigned long nextComida = 0;
+unsigned long nextLimpieza = 0;
+unsigned long nextMaldad = 0;
+unsigned long nextAburrimiento = 0;
+unsigned long nextEnfermedad = 0;
 
 // Pin del buzzer
 #define BUZZER 8
@@ -69,10 +71,6 @@ const unsigned long frameDelay = 300; // 300ms entre frames
 // Variables para mensajes temporales
 unsigned long mensajeMostradoHasta = 0;
 bool mostrandoMensaje = false;
-
-// Marca de validación para EEPROM
-#define EEPROM_MAGIC 0xABCD
-#define EEPROM_MAGIC_ADDR 0
 
 // ========================================
 // ESTRUCTURA DE LA MASCOTA
@@ -471,65 +469,11 @@ enum SeccionMenu {
 int menuActual = MENU_INFO;
 
 // ========================================
-// FUNCIONES DE EEPROM
-// ========================================
-void guardarMascota() {
-  int dir = 2;
-  tiempoTranscurrido = tiempoAcumulado + (millis() - tiempoInicioSesion);
-  EEPROM.put(EEPROM_MAGIC_ADDR, EEPROM_MAGIC);
-  for (int i = 0; i < 10; i++) {
-    EEPROM.write(dir++, miMascota.fase[i]);
-  }
-  EEPROM.put(dir, miMascota.salud); dir += sizeof(miMascota.salud);
-  EEPROM.put(dir, miMascota.felicidad); dir += sizeof(miMascota.felicidad);
-  EEPROM.put(dir, miMascota.saciado); dir += sizeof(miMascota.saciado);
-  EEPROM.put(dir, miMascota.limpieza); dir += sizeof(miMascota.limpieza);
-  EEPROM.put(dir, miMascota.educacion); dir += sizeof(miMascota.educacion);
-  EEPROM.put(dir, miMascota.enfermedad); dir += sizeof(miMascota.enfermedad);
-  EEPROM.put(dir, miMascota.tiempoVivo); dir += sizeof(miMascota.tiempoVivo);
-  EEPROM.put(dir, miMascota.isDead); dir += sizeof(miMascota.isDead);
-  EEPROM.put(dir, miMascota.despierto); dir += sizeof(miMascota.despierto);
-  EEPROM.put(dir, lastComida); dir += sizeof(lastComida);
-  EEPROM.put(dir, lastLimpieza); dir += sizeof(lastLimpieza);
-  EEPROM.put(dir, lastMaldad); dir += sizeof(lastMaldad);
-  EEPROM.put(dir, lastAburrimiento); dir += sizeof(lastAburrimiento);
-  EEPROM.put(dir, lastEnfermedad); dir += sizeof(lastEnfermedad);
-  EEPROM.put(dir, tiempoActual); dir += sizeof(tiempoActual);
-  EEPROM.put(dir, tiempoTranscurrido); dir += sizeof(tiempoTranscurrido);
-  tiempoUltimoGuardado = millis();
-  EEPROM.put(dir, tiempoUltimoGuardado);
-}
-
-bool cargarMascota() {
-  int dir = 2;
-  uint16_t magic;
-  EEPROM.get(EEPROM_MAGIC_ADDR, magic);
-  if (magic != EEPROM_MAGIC) return false;
-  for (int i = 0; i < 10; i++) miMascota.fase[i] = EEPROM.read(dir++);
-  EEPROM.get(dir, miMascota.salud); dir += sizeof(miMascota.salud);
-  EEPROM.get(dir, miMascota.felicidad); dir += sizeof(miMascota.felicidad);
-  EEPROM.get(dir, miMascota.saciado); dir += sizeof(miMascota.saciado);
-  EEPROM.get(dir, miMascota.limpieza); dir += sizeof(miMascota.limpieza);
-  EEPROM.get(dir, miMascota.educacion); dir += sizeof(miMascota.educacion);
-  EEPROM.get(dir, miMascota.enfermedad); dir += sizeof(miMascota.enfermedad);
-  EEPROM.get(dir, miMascota.tiempoVivo); dir += sizeof(miMascota.tiempoVivo);
-  EEPROM.get(dir, miMascota.isDead); dir += sizeof(miMascota.isDead);
-  EEPROM.get(dir, miMascota.despierto); dir += sizeof(miMascota.despierto);
-  EEPROM.get(dir, lastComida); dir += sizeof(lastComida);
-  EEPROM.get(dir, lastLimpieza); dir += sizeof(lastLimpieza);
-  EEPROM.get(dir, lastMaldad); dir += sizeof(lastMaldad);
-  EEPROM.get(dir, lastAburrimiento); dir += sizeof(lastAburrimiento);
-  EEPROM.get(dir, lastEnfermedad); dir += sizeof(lastEnfermedad);
-  EEPROM.get(dir, tiempoActual); dir += sizeof(tiempoActual);
-  EEPROM.get(dir, tiempoTranscurrido); dir += sizeof(tiempoTranscurrido);
-  EEPROM.get(dir, tiempoUltimoGuardado); dir += sizeof(tiempoUltimoGuardado);
-  return true;
-}
-
-// ========================================
 // FUNCIONES DE DIBUJADO
 // ========================================
 void dibujarPantalla(int animationFrame = 0) {
+  if(!displayOK) return; // No dibujar si el display no está inicializado
+  
   display.clearDisplay();
 
   // Dibujar iconos del menú solo si NO hay un mensaje activo
@@ -603,41 +547,52 @@ void setup() {
   if (nDevices == 0) Serial.println(F("No se encontraron dispositivos I2C!"));
   else Serial.println(F("Dispositivos I2C encontrados"));
 
-  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) {
-      Serial.println(F("ERROR: No se pudo inicializar el display OLED"));
-      delay(2000);
-    }
-  }
-
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 0);
-  display.println(F("Topigochi"));
-  display.println(F("Iniciando..."));
-  display.display();
-  delay(2000);
-
-  if (!cargarMascota()) {
-    inicializarMascota();
-    tiempoInicioSesion = millis();
-    tiempoAcumulado = 0;
-    tiempoTranscurrido = 0;
-    lastComida = millis();
-    lastLimpieza = millis();
-    lastMaldad = millis();
-    lastAburrimiento = millis();
-    lastEnfermedad = millis();
+  // Intentar inicializar display OLED
+  Serial.println(F("Inicializando display OLED..."));
+  delay(100);
+  
+  if(display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("Display OLED inicializado OK"));
+    displayOK = true;
   } else {
-    tiempoInicioSesion = millis();
-    tiempoAcumulado = tiempoTranscurrido;
+    Serial.println(F("ERROR: No se pudo inicializar OLED en 0x3C"));
+    displayOK = false;
   }
 
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.println(F("Presiona un boton"));
-  display.display();
+  if(displayOK) {
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 0);
+    display.println(F("Topigochi"));
+    display.println(F("Iniciando..."));
+    display.display();
+    delay(2000);
+  }
+
+  // Inicializar generador de números aleatorios
+  randomSeed(analogRead(0));
+  
+  // Inicializar la mascota siempre desde cero
+  inicializarMascota();
+  tiempoInicioSesion = millis();
+  tiempoAcumulado = 0;
+  tiempoTranscurrido = 0;
+  
+  // Inicializar próximos eventos con variación aleatoria
+  unsigned long ahora = millis();
+  nextComida = ahora + intervaloComida + random(0, variacionMaxima);
+  nextLimpieza = ahora + intervaloLimpieza + random(0, variacionMaxima);
+  nextMaldad = ahora + intervaloMaldad + random(0, variacionMaxima);
+  nextAburrimiento = ahora + intervaloAburrimiento + random(0, variacionMaxima);
+  nextEnfermedad = ahora + intervaloEnfermedad + random(0, variacionMaxima);
+
+  if(displayOK) {
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.println(F("Presiona un boton"));
+    display.display();
+  }
 }
 
 // ========================================
@@ -755,6 +710,12 @@ void cheackearEventos() {
       tiempoAcumulado = 0;  // RESET: resetear tiempo acumulado
       tiempoInicioSesion = tiempoActual;  // RESET: nuevo punto de inicio
       miMascota.tiempoVivo = 0;
+      // Recalcular próximos eventos con nuevos intervalos y variación aleatoria
+      nextComida = tiempoActual + intervaloComida + random(0, variacionMaxima);
+      nextLimpieza = tiempoActual + intervaloLimpieza + random(0, variacionMaxima);
+      nextMaldad = tiempoActual + intervaloMaldad + random(0, variacionMaxima);
+      nextAburrimiento = tiempoActual + intervaloAburrimiento + random(0, variacionMaxima);
+      nextEnfermedad = tiempoActual + intervaloEnfermedad + random(0, variacionMaxima);
       mostrarMensaje("¡Evoluciono!");
       // Melodía de celebración
       tone(BUZZER, 1200, 200);
@@ -776,6 +737,12 @@ void cheackearEventos() {
       tiempoAcumulado = 0;  // RESET
       tiempoInicioSesion = tiempoActual;  // RESET
       miMascota.tiempoVivo = 0;
+      // Recalcular próximos eventos con nuevos intervalos
+      nextComida = tiempoActual + intervaloComida + random(0, variacionMaxima);
+      nextLimpieza = tiempoActual + intervaloLimpieza + random(0, variacionMaxima);
+      nextMaldad = tiempoActual + intervaloMaldad + random(0, variacionMaxima);
+      nextAburrimiento = tiempoActual + intervaloAburrimiento + random(0, variacionMaxima);
+      nextEnfermedad = tiempoActual + intervaloEnfermedad + random(0, variacionMaxima);
       mostrarMensaje("¡Evoluciono!");
     } else if (faseActual == 2 && miMascota.tiempoVivo >= 259200000) { // adulto -> anciano
       faseActual = 3;
@@ -789,33 +756,50 @@ void cheackearEventos() {
       tiempoAcumulado = 0;  // RESET
       tiempoInicioSesion = tiempoActual;  // RESET
       miMascota.tiempoVivo = 0;
+      // Recalcular próximos eventos con nuevos intervalos
+      nextComida = tiempoActual + intervaloComida + random(0, variacionMaxima);
+      nextLimpieza = tiempoActual + intervaloLimpieza + random(0, variacionMaxima);
+      nextMaldad = tiempoActual + intervaloMaldad + random(0, variacionMaxima);
+      nextAburrimiento = tiempoActual + intervaloAburrimiento + random(0, variacionMaxima);
+      nextEnfermedad = tiempoActual + intervaloEnfermedad + random(0, variacionMaxima);
       mostrarMensaje("¡Evoluciono!");
     }
-    // Usar los intervalos actuales
-    if (tiempoActual - lastComida >= intervaloComida) {
+    // Eventos independientes con intervalos aleatorios
+    // Hambre
+    if (tiempoActual >= nextComida) {
       if (miMascota.saciado > 1) miMascota.saciado--;
       else miMascota.isDead = true;
-      lastComida = tiempoActual;
+      // Calcular próximo evento con variación aleatoria
+      unsigned long variacion = random(0, variacionMaxima);
+      nextComida = tiempoActual + intervaloComida + variacion;
     }
-    if (tiempoActual - lastLimpieza >= intervaloLimpieza) {
+    // Limpieza
+    if (tiempoActual >= nextLimpieza) {
       if (miMascota.limpieza > 1) miMascota.limpieza--;
       else miMascota.isDead = true;
-      lastLimpieza = tiempoActual;
+      unsigned long variacion = random(0, variacionMaxima);
+      nextLimpieza = tiempoActual + intervaloLimpieza + variacion;
     }
-    if (tiempoActual - lastMaldad >= intervaloMaldad) {
+    // Maldad (educación)
+    if (tiempoActual >= nextMaldad) {
       if (miMascota.educacion > 1) miMascota.educacion--;
       else miMascota.isDead = true;
-      lastMaldad = tiempoActual;
+      unsigned long variacion = random(0, variacionMaxima);
+      nextMaldad = tiempoActual + intervaloMaldad + variacion;
     }
-    if (tiempoActual - lastAburrimiento >= intervaloAburrimiento) {
+    // Aburrimiento
+    if (tiempoActual >= nextAburrimiento) {
       if (miMascota.felicidad > 1) miMascota.felicidad--;
       else miMascota.isDead = true;
-      lastAburrimiento = tiempoActual;
+      unsigned long variacion = random(0, variacionMaxima);
+      nextAburrimiento = tiempoActual + intervaloAburrimiento + variacion;
     }
-    if (tiempoActual - lastEnfermedad >= intervaloEnfermedad) {
+    // Enfermedad
+    if (tiempoActual >= nextEnfermedad) {
       if (miMascota.enfermedad < 5) miMascota.enfermedad++;
       else miMascota.isDead = true;
-      lastEnfermedad = tiempoActual;
+      unsigned long variacion = random(0, variacionMaxima);
+      nextEnfermedad = tiempoActual + intervaloEnfermedad + variacion;
     }
     // Sumar tiempo vivo
     miMascota.tiempoVivo += millis() - tiempoActual;

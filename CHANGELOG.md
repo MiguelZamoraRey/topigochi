@@ -5,6 +5,35 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [0.4.0] - 2026-01-12
+
+### ✨ Añadido
+- **Eventos Independientes con Variación Aleatoria**
+  - Cada stat (hambre, limpieza, felicidad, educación, enfermedad) tiene su propio temporizador
+  - Los eventos ocurren en tiempos impredecibles (±30 minutos de variación)
+  - Comportamiento más similar al Tamagotchi original
+  
+- **Sistema de Próximos Eventos**
+  - Variables `nextComida`, `nextLimpieza`, `nextMaldad`, `nextAburrimiento`, `nextEnfermedad`
+  - Cada evento calcula el siguiente tiempo cuando ocurre
+
+### 🗑️ Eliminado
+- **Guardado persistente en EEPROM**
+  - Funciones `guardarMascota()` y `cargarMascota()` eliminadas
+  - Ya no se realiza guardado automático
+  - Eliminado `#include <EEPROM.h>`
+  - Razón: Evitar desgaste innecesario del Arduino Nano (EEPROM tiene ciclos limitados)
+
+### 🔄 Cambiado
+- La mascota siempre reinicia desde cero al encender el Arduino
+- Inicialización más simple sin manejo de EEPROM
+- Variable `tiempoUltimoGuardado` eliminada
+
+### 🐛 Corregido
+- Mejorada la estabilidad de la inicialización del display OLED
+- Agregado flag `displayOK` para prevenir intentos de dibujo si el display falla
+
+---
 
 ## [0.3.0] - 2025-12-24
 
@@ -27,11 +56,6 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - Mejoras en la visualización y feedback de acciones.
 
 ---
-## [Unreleased]
-
-### Planeado
-...existing code...
-
 ## [0.2.0] - 2024-12-21
 
 ### ✨ Añadido

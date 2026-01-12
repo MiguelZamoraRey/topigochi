@@ -259,9 +259,9 @@ Para debugging, abre el monitor serial (`Herramientas > Monitor Serie`) a 9600 b
 - ✅ Menú interactivo de 8 secciones navegable con iconos visuales
 - ✅ Animaciones del bichejo/mascota según su estado (feliz, dormido, muerto, etc.)
 - ✅ Estados avanzados: dormido, despierto, muerto
-- ✅ Guardado persistente de datos en EEPROM (con protección anti-crash)
-- ✅ Eventos de comida, limpieza, juego, enfermedad y muerte
-- ✅ Degradación automática de atributos (hambre, limpieza, felicidad bajan con el tiempo)
+- ✅ **SIN almacenamiento persistente** (funciona solo en RAM - reinicia al apagar)
+- ✅ Eventos independientes con intervalos aleatorios (como el Tamagotchi original)
+- ✅ Degradación automática de atributos con variación temporal (no todos a la vez)
 - ✅ 3 botones con funciones diferenciadas (navegar, acción, cancelar)
 - ✅ 6 acciones para cuidar la mascota
 - ✅ Sistema de información de estado
@@ -272,12 +272,15 @@ Para debugging, abre el monitor serial (`Herramientas > Monitor Serie`) a 9600 b
 - ✅ Anti-rebote (debounce) en botones
 - ✅ Comunicación serial para debugging
 - ✅ Límites en los atributos (evita valores fuera de rango)
+- ✅ Sistema de evolución de fases con cambio de intervalos
 
-## 🆕 Novedades recientes
+## 🆕 Cambios Recientes (v0.4.0)
 
-- Navegación con iconos visuales para cada sección del menú
-- Degradación automática de atributos (hambre, limpieza, felicidad bajan con el tiempo)
-- Animaciones dinámicas y bitmaps para las fases huevo y adulto
+- **Eventos Independientes**: Cada stat (hambre, limpieza, felicidad, educación, enfermedad) tiene su propio temporizador
+- **Variación Aleatoria**: Los eventos ocurren con intervalos aleatorios (±30min) para mayor impredictibilidad
+- **Sin EEPROM**: Eliminado el guardado persistente para evitar desgaste del Arduino Nano
+- **Inicialización Simplificada**: La mascota siempre inicia desde cero (experiencia más limpia)
+- **Comportamiento Tipo Tamagotchi**: Los eventos no son sincronizados, ocurren cuando el intervalo aleatorio se cumple
 - Estructura lista para animaciones diferentes por fase (arrays por fase en dibujarPantalla)
 - Eliminada la funcionalidad de "educar" (botón, variable, lógica y visualización)
 - Limpieza de variables y código innecesario
